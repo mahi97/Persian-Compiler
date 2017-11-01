@@ -9,4 +9,4 @@ lex.c : lexer.lex
 	lex -t lex.lex > lex.c
 
 clean :
-	rm -rf main lex.o lex.c
+	rm -rf main lex.o lex.c output.txt
