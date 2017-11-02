@@ -4,10 +4,23 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+char symbolTable[100][50];
 FILE *fout;
 int wrong=0;
-int install_id(char* next) {return 0;}
+int cursor = 0;
+int install_id(char* next) {
+	
+	for (int i = 0; i < cursor; i++) {
+		if (strcmp(next, symbolTable[i]) == 0) {
+			return i;	
+		}
+	}
+	
+	strcpy(symbolTable[cursor], next);
+	return cursor++;
+}
 
 %}
 
