@@ -1,0 +1,4 @@
+main
+output.txt
+*.c
+*.o
