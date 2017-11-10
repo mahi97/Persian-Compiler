@@ -22,6 +22,31 @@ int install_id(char* next) {
 	return cursor++;
 }
 
+int toNum(char* adad) {
+	int i = 0;
+	int res[50];
+	while(adad[i] != '\0') {
+		     if (strcmp(&adad[i], "۱") == 0) res[i] = 1;
+		else if (strcmp(&adad[i], "۲") == 0) res[i] = 2;
+		else if (strcmp(&adad[i], "۳") == 0) res[i] = 3;
+		else if (strcmp(&adad[i], "۴") == 0) res[i] = 4;
+		else if (strcmp(&adad[i], "۵") == 0) res[i] = 5;
+		else if (strcmp(&adad[i], "۶") == 0) res[i] = 6;
+		else if (strcmp(&adad[i], "۷") == 0) res[i] = 7;
+		else if (strcmp(&adad[i], "۸") == 0) res[i] = 8;
+		else if (strcmp(&adad[i], "۹") == 0) res[i] = 9;
+		else if (strcmp(&adad[i], "۰") == 0) res[i] = 0;
+		else res[i] = atoi(&adad[i]);
+		i++;
+	}
+	int r = 0;
+	for (int j = 0; j < i; j++) {
+		printf("R : %d", res[j]);
+		r += res[j]*pow(10,i-j-2);
+	}
+	return r;
+}
+
 %}
 
 ragham (۰|۱|۲|۳|۴|۵|۶|۷|۸|۹|[0-9])
@@ -83,7 +108,7 @@ AMALGAR_MEGDARDEHI_TAGHSIM (\/=)
 
 SHENASE {harf}({harf}|{ragham})*
 ADAD {ragham}+
-HARFE_SABET \'{harf}\'
+HARFE_SABET \'\\?{harf}\'
 JAYEKHALI (\ |\t)*
 NOGHTE_VIRGUL (;|؛)
 COMMA (,|،)
@@ -125,7 +150,7 @@ COMMENT (\/\/.*)|(\/\*(.|\n)*\*\/)
 {HARFE_SABET} {fprintf(fout, "\t%s\t", yytext); fprintf(fout, "CHAR_CONSTANT\t%s\n", yytext);}
 
 {SHENASE}    {fprintf(fout, "\t%s\t", yytext); fprintf(fout, "ID\t%d\n", install_id(yytext));}
-{ADAD} {fprintf(fout, "\t%s\t", yytext); fprintf(fout, "NUM\t-\n");}
+{ADAD} {fprintf(fout, "\t%s\t", yytext); fprintf(fout, "NUM\t%d\n", toNum(yytext));}
 {COMMENT} {}
 
 {AMALGAR_RABTI_GT} {fprintf(fout, "\t%s\t", yytext); fprintf(fout, "RELATIVE_OP\t%s\n", "GT"); }

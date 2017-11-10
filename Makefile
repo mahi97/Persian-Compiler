@@ -5,7 +5,7 @@ main : lex.o
 lex.o : lex.c
 	cc -c -o lex.o lex.c
 
-lex.c : lexer.lex
+lex.c : lex.lex
 	lex -t lex.lex > lex.c
 
 clean :
