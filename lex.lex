@@ -11,6 +11,7 @@ char symbolTable[100][50];
 FILE *fout;
 int wrong=0;
 int cursor = 0;
+
 int install_id(char* next) {
 	
 	for (int i = 0; i < cursor; i++) {
@@ -45,6 +46,18 @@ int toNum(char* adad) {
 		r += res[j]*pow(10,count-j-1);
 	}
 	return r;
+}
+
+char* toChar(char* harf) {
+	if (strcmp(harf, "\'\\n\'") == 0) {
+		return "newline";
+	} else if ( strcmp(harf, "\'\\0\'") == 0 || strcmp(harf, "\'\\۰\'") == 0 ) {
+		return "null";
+	} else {
+		int idxToDel = 1; 
+		memmove(&harf[idxToDel], &harf[idxToDel + 1], strlen(harf) - idxToDel);
+		return harf;
+	}
 }
 
 %}
@@ -108,7 +121,8 @@ AMALGAR_MEGDARDEHI_TAGHSIM (\/=)
 
 SHENASE {harf}({harf}|{ragham})*
 ADAD {ragham}+
-HARFE_SABET \'\\?{harf}\'
+HARFE_SABET \'{harf}\'
+HARFE_SABET_KHAS (\'\\{harf}\'|\'\\0\'|\'\\n\'|\'\\۰\')
 JAYEKHALI (\ |\t)*
 NOGHTE_VIRGUL (;|؛)
 COMMA (,|،)
@@ -148,6 +162,7 @@ COMMENT (\/\/.*)|(\/\*(.|\n)*\*\/)
 {BOOLEAN_CONSTANT_TRUE} {fprintf(fout, "\t%s\t", yytext); fprintf(fout, "BOOL_CONSTANT\t%s\n", "true");  }
 {BOOLEAN_CONSTANT_FALSE} {fprintf(fout, "\t%s\t", yytext); fprintf(fout, "BOOL_CONSTANT\t%s\n", "false");}
 {HARFE_SABET} {fprintf(fout, "\t%s\t", yytext); fprintf(fout, "CHAR_CONSTANT\t%s\n", yytext);}
+{HARFE_SABET_KHAS} {fprintf(fout, "\t%s\t", yytext); fprintf(fout, "CHAR_CONSTANT\t%s\n", toChar(yytext));}
 
 {SHENASE}    {fprintf(fout, "\t%s\t", yytext); fprintf(fout, "ID\t%d\n", install_id(yytext));}
 {ADAD} {fprintf(fout, "\t%s\t", yytext); fprintf(fout, "NUM\t%d\n", toNum(yytext));}
