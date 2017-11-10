@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 char symbolTable[100][50];
 FILE *fout;
@@ -24,25 +25,24 @@ int install_id(char* next) {
 
 int toNum(char* adad) {
 	int i = 0;
+	int count = 0;
 	int res[50];
 	while(adad[i] != '\0') {
-		     if (strcmp(&adad[i], "۱") == 0) res[i] = 1;
-		else if (strcmp(&adad[i], "۲") == 0) res[i] = 2;
-		else if (strcmp(&adad[i], "۳") == 0) res[i] = 3;
-		else if (strcmp(&adad[i], "۴") == 0) res[i] = 4;
-		else if (strcmp(&adad[i], "۵") == 0) res[i] = 5;
-		else if (strcmp(&adad[i], "۶") == 0) res[i] = 6;
-		else if (strcmp(&adad[i], "۷") == 0) res[i] = 7;
-		else if (strcmp(&adad[i], "۸") == 0) res[i] = 8;
-		else if (strcmp(&adad[i], "۹") == 0) res[i] = 9;
-		else if (strcmp(&adad[i], "۰") == 0) res[i] = 0;
-		else res[i] = atoi(&adad[i]);
+		int num = adad[i];
+		if (num >= 0 && num <= 255) {
+			res[count] = atoi(&adad[i]);
+			count++;
+		} else {
+			if (num != -37) {
+				res[count] = num + 80;
+				count++;
+			} 
+		}
 		i++;
 	}
 	int r = 0;
-	for (int j = 0; j < i; j++) {
-		printf("R : %d", res[j]);
-		r += res[j]*pow(10,i-j-2);
+	for (int j = 0; j < count; j++) {
+		r += res[j]*pow(10,count-j-1);
 	}
 	return r;
 }
@@ -50,7 +50,7 @@ int toNum(char* adad) {
 %}
 
 ragham (۰|۱|۲|۳|۴|۵|۶|۷|۸|۹|[0-9])
-harf (ض|ص|ث|ق|ف|غ|ع|ه|خ|ح|ج|چ|گ|ک|م|ن|ت|ا|ل|ب|ی|س|ش|ظ|ط|ز|ر|ذ|د|پ|و|ژ|آ|ـ)
+harf (_|ض|ص|ث|ق|ف|غ|ع|ه|خ|ح|ج|چ|گ|ک|م|ن|ت|ا|ل|ب|ی|س|ش|ظ|ط|ز|ر|ذ|د|پ|و|ژ|آ|ـ)
 BOOLEAN_CONSTANT_TRUE (درست)
 BOOLEAN_CONSTANT_FALSE (غلط)
 
