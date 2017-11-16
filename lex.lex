@@ -24,29 +24,29 @@ int install_id(char* next) {
 	return cursor++;
 }
 
-int toNum(char* INT_NUM) {
-	int i = 0;
-	int count = 0;
-	int res[50];
-	while(INT_NUM[i] != '\0') {
-		int num = INT_NUM[i];
-		if (num >= 0 && num <= 255) {
-			res[count] = atoi(&INT_NUM[i]);
-			count++;
-		} else {
-			if (num != -37) {
-				res[count] = num + 80;
-				count++;
-			}
-		}
-		i++;
-	}
-	int r = 0;
-	for (int j = 0; j < count; j++) {
-		r += res[j]*pow(10,count-j-1);
-	}
-	return r;
-}
+// int toNum(char* INT_NUM) {
+// 	int i = 0;
+// 	int count = 0;
+// 	int res[50];
+// 	while(INT_NUM[i] != '\0') {
+// 		int num = INT_NUM[i];
+// 		if (num >= 0 && num <= 255) {
+// 			res[count] = atoi(&INT_NUM[i]);
+// 			count++;
+// 		} else {
+// 			if (num != -37) {
+// 				res[count] = num + 80;
+// 				count++;
+// 			}
+// 		}
+// 		i++;
+// 	}
+// 	int r = 0;
+// 	for (int j = 0; j < count; j++) {
+// 		r += res[j]*pow(10,count-j-1);
+// 	}
+// 	return r;
+// }
 
 char* toChar(char* harf) {
 	if (strcmp(harf, "\'\\n\'") == 0) {

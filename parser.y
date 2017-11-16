@@ -9,7 +9,7 @@ extern FILE *yyin;
 extern int yylineno;
 extern char* yytext;
 
-voIDENTIFIER yyerror(const char *s);
+void yyerror(const char *s);
 
 FILE *fout;
 %}
@@ -22,7 +22,7 @@ FILE *fout;
 	int ival;
 	float rval;
 	_Bool bval;
-	char* IDENTIFIER;
+	char* id;
   char cval;
 }
 
@@ -35,7 +35,7 @@ FILE *fout;
 %token <ival> INT_NUM
 %token <rval> REAL_NUM
 %token <bval> BOOL_CONSTANT
-%token <IDENTIFIER> IDENTIFIER
+%token <id> IDENTIFIER
 %token <cval> CHAR_CONSTANT
 
 %left AND_KW OR_KW
@@ -547,7 +547,7 @@ int main() {
 		yyparse();
 }
 
-voIDENTIFIER yyerror(const char *s) {
+void yyerror(const char *s) {
 	fprintf(fout, "**Error: Line %d near token '%s' --> Message: %s **\n", yylineno,yytext ,s);
 	printf("**Error: Line %d near token '%s' --> Message: %s **\n", yylineno,yytext, s);
 	// might as well halt now:
