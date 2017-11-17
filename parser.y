@@ -13,11 +13,7 @@ void yyerror(const char *s);
 
 FILE *fout;
 %}
-// Bison fundamentally works by asking flex to get the next token, which it
-// returns as an object of type "yystype".  But tokens could be of any
-// arbitrary data type!  So we deal with that in Bison by defining a C union
-// holding each of the types of tokens that Flex could return, and have Bison
-// use that union instead of "int" for the definition of "yystype":
+
 %union {
 	int ival;
 	float rval;
@@ -48,8 +44,8 @@ FILE *fout;
 %left PLUS_KW MINUS_KW
 
 %right NOT_KW
-%left THEN_KW
-%left ELSE_KW
+%right THEN_KW
+%right ELSE_KW
 
 %%
 
@@ -57,188 +53,188 @@ FILE *fout;
 // something silly to echo to the screen what bison gets from flex.  We'll
 // make a real one shortly:
 
-barname : PROGRAM_KW IDENTIFIER declist
+program : PROGRAM_KW IDENTIFIER declist
 	{
-		fprintf(fout, "Rule 1 \t\t program -> PROGRAM_KW IDENTIFIER declist \n") ;
+		fprintf(fout, "%d: Rule 1 \t\t program -> PROGRAM_KW IDENTIFIER declist \n", yylineno) ;
 	};
 
 declist : declist dec
 	{
-		fprintf(fout, "Rule 2.1 \t\t declist -> declist dec \n") ;
+		fprintf(fout, "%d: Rule 2.1 \t\t declist -> declist dec \n", yylineno) ;
 	};
 	|  dec
 	{
-		fprintf(fout, "Rule 2.2 \t\t declist -> dec \n") ;
+		fprintf(fout, "%d: Rule 2.2 \t\t declist -> dec \n", yylineno) ;
 	};
 
 dec : structdec
 	{
-		fprintf(fout, "Rule 3.1 \t\t dec -> structdec \n") ;
+		fprintf(fout, "%d: Rule 3.1 \t\t dec -> structdec \n", yylineno) ;
 	};
 	|	 vardec
 	{
-		fprintf(fout, "Rule 3.2 \t\t dec -> vardec \n") ;
+		fprintf(fout, "%d: Rule 3.2 \t\t dec -> vardec \n", yylineno) ;
 	};
 	| funcdec
 	{
-		fprintf(fout, "Rule 3.3 \t\t dec -> funcdec \n") ;
+		fprintf(fout, "%d: Rule 3.3 \t\t dec -> funcdec \n", yylineno) ;
 	};
 
 structdec : STRUCT_KW IDENTIFIER '{' localdec '}'
   {
-    fprintf(fout, "Rule 4 \t\t structdec -> STRUCT_KW IDENTIFIER { localdec } \n");
+    fprintf(fout, "%d: Rule 4 \t\t structdec -> STRUCT_KW IDENTIFIER { localdec } \n", yylineno);
   };
 
 localdec : localdec limitedvardec
   {
-    fprintf(fout, "Rule 5.1 \t\t localdec -> localdec limitedvardec \n");
+    fprintf(fout, "%d: Rule 5.1 \t\t localdec -> localdec limitedvardec \n", yylineno);
   };
   | /* empty */
   {
-    fprintf(fout, "Rule 5.2 \t\t localdec -> e \n");
+    fprintf(fout, "%d: Rule 5.2 \t\t localdec -> e \n", yylineno);
   };
 
 limitedvardec : limitedvartype varsdecs ';'
   {
-    fprintf(fout, "Rule 6 \t\t limitedvardec -> limitedvartype varsdecs ; \n");
+    fprintf(fout, "%d: Rule 6 \t\t limitedvardec -> limitedvartype varsdecs ; \n", yylineno);
   };
 
 limitedvartype : CONST_KW type
   {
-    fprintf(fout, "Rule 7.1 \t\t limitedvartype -> CONST_KW type \n");
+    fprintf(fout, "%d: Rule 7.1 \t\t limitedvartype -> CONST_KW type \n", yylineno);
   };
   | type
   {
-    fprintf(fout, "Rule 7.2 \t\t limitedvartype -> type \n");
+    fprintf(fout, "%d: Rule 7.2 \t\t limitedvartype -> type \n", yylineno);
   };
 
 type : INT_KW
   {
-    fprintf(fout, "Rule 8.1 \t\t type -> INT_KW \n");
+    fprintf(fout, "%d: Rule 8.1 \t\t type -> INT_KW \n", yylineno);
   };
   | REAL_KW
   {
-    fprintf(fout, "Rule8.2 \t\t type : REAL_KW \n");
+    fprintf(fout, "%d: Rule8.2 \t\t type : REAL_KW \n", yylineno);
   };
   | CHAR_KW
   {
-    fprintf(fout, "Rule 8.3 \t\t type : CHAR_KW \n");
+    fprintf(fout, "%d: Rule 8.3 \t\t type : CHAR_KW \n", yylineno);
   };
   | BOOL_KW
   {
-    fprintf(fout, "Rule 8.4 \t\t type : BOOL_KW \n");
+    fprintf(fout, "%d: Rule 8.4 \t\t type : BOOL_KW \n", yylineno);
   };
 
 vardec : type varsdecs ';'
   {
-    fprintf(fout, "Rule 9 \t\t vardec -> type varsdecs ;\n");
+    fprintf(fout, "%d: Rule 9 \t\t vardec -> type varsdecs ;\n", yylineno);
   };
 
 varsdecs : primiryvardec
   {
-    fprintf(fout, "Rule 10.1 \t\t varsdecs -> primiryvardec \n");
+    fprintf(fout, "%d: Rule 10.1 \t\t varsdecs -> primiryvardec \n", yylineno);
   };
   | varsdecs ',' primiryvardec
   {
-    fprintf(fout, "Rule 10.1 \t\t varsdecs -> varsdecs , primiryvardec \n");
+    fprintf(fout, "%d: Rule 10.1 \t\t varsdecs -> varsdecs , primiryvardec \n", yylineno);
   };
 
-primiryvardec : varIDENTIFIERdec
+primiryvardec : varIDdec
   {
-    fprintf(fout, "Rule 11.1 \t\t primiryvardec -> varIDENTIFIERdec \n");
+    fprintf(fout, "%d: Rule 11.1 \t\t primiryvardec -> varIDdec \n", yylineno);
   };
-  | varIDENTIFIERdec '=' simpleexp
+  | varIDdec '=' simpleexp
   {
-    fprintf(fout, "Rule 11.2 \t\t primiryvardec -> varIDENTIFIERdec = simpleexp \n");
+    fprintf(fout, "%d: Rule 11.2 \t\t primiryvardec -> varIDdec = simpleexp \n", yylineno);
   };
 
-varIDENTIFIERdec : IDENTIFIER
+varIDdec : IDENTIFIER
   {
-    fprintf(fout, "Rule 6 \t\t varIDENTIFIERdec -> IDENTIFIER \n");
+    fprintf(fout, "%d: Rule 12.1 \t\t varIDdec -> IDENTIFIER \n", yylineno);
   };
   | IDENTIFIER '[' INT_NUM ']'
   {
-    fprintf(fout, "Rule 6 \t\t varIDENTIFIERdec -> IDENTIFIER [ INT_NUM ] \n");
+    fprintf(fout, "%d: Rule 12.2 \t\t varIDdec -> IDENTIFIER [ INT_NUM ] \n", yylineno);
   };
 
 funcdec : type IDENTIFIER '(' arg ')' sentence
   {
-    fprintf(fout, "Rule 6 \t\t funcdec -> type IDENTIFIER ( arg ) sentence \n");
+    fprintf(fout, "%d: Rule 13.1 \t\t funcdec -> type IDENTIFIER ( arg ) sentence \n", yylineno);
   };
   | IDENTIFIER '(' arg ')' sentence
   {
-    fprintf(fout, "Rule 6 \t\t funcdec -> IDENTIFIER ( arg ) sentence \n");
+    fprintf(fout, "%d: Rule 13.2 \t\t funcdec -> IDENTIFIER ( arg ) sentence \n", yylineno);
   };
 
 arg : args
   {
-    fprintf(fout, "Rule 6 \t\t arg -> args \n");
+    fprintf(fout, "%d: Rule 14.1 \t\t arg -> args \n", yylineno);
   };
   | /* empty */
   {
-    fprintf(fout, "Rule 6 \t\t arg : e \n");
+    fprintf(fout, "%d: Rule 14.2 \t\t arg : e \n", yylineno);
   };
 
 args : args ';' argstype
   {
-    fprintf(fout, "Rule 6 \t\t args -> args ; argstype \n");
+    fprintf(fout, "%d: Rule 15.1 \t\t args -> args ; argstype \n", yylineno);
   };
   | argstype
   {
-    fprintf(fout, "Rule 6 \t\t args -> argstype \n");
+    fprintf(fout, "%d: Rule 15.2 \t\t args -> argstype \n", yylineno);
   };
 
-argstype : type argsIDENTIFIER
+argstype : type argsID
   {
-    fprintf(fout, "Rule 6 \t\t argstype -> type argsIDENTIFIER \n");
+    fprintf(fout, "%d: Rule 16 \t\t argstype -> type argsID \n", yylineno);
   };
 
-argsIDENTIFIER : argsIDENTIFIER ',' argIDENTIFIER
+argsID : argsID ',' argID
   {
-    fprintf(fout, "Rule 6 \t\t argsIDENTIFIER -> argsIDENTIFIER , argIDENTIFIER \n");
+    fprintf(fout, "Rule 17.1 \t\t argsID -> argsID , argID \n");
   };
-  | argIDENTIFIER
+  | argID
   {
-    fprintf(fout, "Rule 6 \t\t argsIDENTIFIER -> argIDENTIFIER \n");
+    fprintf(fout, "Rule 17.2 \t\t argsID -> argID \n");
   };
 
-argIDENTIFIER : IDENTIFIER
+argID : IDENTIFIER
   {
-    fprintf(fout, "Rule 6 \t\t argIDENTIFIER -> IDENTIFIER \n");
+    fprintf(fout, "Rule 18.1 \t\t argID -> IDENTIFIER \n");
   };
   | IDENTIFIER '[' ']'
   {
-    fprintf(fout, "Rule 6 \t\t argIDENTIFIER : IDENTIFIER [ ] \n");
+    fprintf(fout, "Rule 18.2 \t\t argID : IDENTIFIER [ ] \n");
   };
 
 sentence : compSent
   {
-    fprintf(fout, "Rule 6 \t\t sentence -> compSent \n");
+    fprintf(fout, "Rule 19.1 \t\t sentence -> compSent \n");
   };
   | exprSent
   {
-    fprintf(fout, "Rule 6 \t\t sentence -> exprSent \n");
+    fprintf(fout, "Rule 19.2 \t\t sentence -> exprSent \n");
   };
   | selectSent
   {
-    fprintf(fout, "Rule 6 \t\t sentence -> selectSent \n");
+    fprintf(fout, "Rule 19.3 \t\t sentence -> selectSent \n");
   };
   | repeatSent
   {
-    fprintf(fout, "Rule 6 \t\t sentence -> repeatSent \n");
+    fprintf(fout, "Rule 19.4 \t\t sentence -> repeatSent \n");
   };
   | returnSent
   {
-    fprintf(fout, "Rule 6 \t\t sentence -> returnSent \n");
+    fprintf(fout, "Rule 19.5 \t\t sentence -> returnSent \n");
   };
   | breakSent
   {
-    fprintf(fout, "Rule 6 \t\t sentence -> breakSent \n");
+    fprintf(fout, "Rule 19.6 \t\t sentence -> breakSent \n");
   };
 
 compSent : '{' localdec sentences '}'
   {
-    fprintf(fout, "Rule 6 \t\t compSent -> { localdec sentences } \n");
+    fprintf(fout, "Rule 20 \t\t compSent -> { localdec sentences } \n");
   };
 
 sentences : sentences sentence
@@ -456,7 +452,7 @@ opera : variable
 
 variable : IDENTIFIER
   {
-    fprintf(fout, "Rule 6 \t\t variable : IDENTIFIER \n");
+    fprintf(fout, "Rule 6 \t\t variable -> IDENTIFIER \n");
   };
   | variable '[' expr ']'
   {
@@ -545,6 +541,8 @@ int main() {
 	// parse through the input until there is no more:
 	else
 		yyparse();
+  fclose(fout);
+  printf("Finished\n");
 }
 
 void yyerror(const char *s) {

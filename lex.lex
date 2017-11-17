@@ -62,6 +62,7 @@ char* toChar(char* harf) {
 
 %}
 
+ZERO (0|۰)
 DIGIT (۰|۱|۲|۳|۴|۵|۶|۷|۸|۹|[0-9])
 NONZERO_DIGIT (۱|۲|۳|۴|۵|۶|۷|۸|۹|[1-9])
 
@@ -138,18 +139,20 @@ COMMENT (\/\/.*)|(\/\*(.|\n)*\*\/)
 HARFE_SABET \'{harf}\'
 HARFE_SABET_KHAS (\'\\{harf}\'|\'\\0\'|\'\\n\'|\'\\۰\')
 
-INT_NUM "0"|({NONZERO_DIGIT}{DIGIT}*)
-REAL_NUM ({NONZERO_DIGIT}{DIGIT}*[.][0]*{NONZERO_DIGIT}+)|("0."[0]*{NONZERO_DIGIT}+)|"0.0"|({NONZERO_DIGIT}{DIGIT}*".0")
+INT_NUM [-]?{ZERO}|({NONZERO_DIGIT}{DIGIT}*)
+REAL_NUM [-]?({DIGIT}*\.{DIGIT}+|{DIGIT}+)
 CHAR_CONSTANT {HARFE_SABET}|{HARFE_SABET_KHAS}
 BOOL_CONSTANT {BOOLEAN_CONSTANT_TRUE}|{BOOLEAN_CONSTANT_FALSE}
 
 %%
 
+{COMMENT} {}
+
 {PROGRAM_KW} {return PROGRAM_KW;}
-{STRUCT_KW} {return STRUCT_KW;}
+{STRUCT_KW}  {return STRUCT_KW;}
 {CONST_KW}   {return CONST_KW;}
 {INT_KW}     {return INT_KW;}
-{REAL_KW}   {return REAL_KW;}
+{REAL_KW}    {return REAL_KW;}
 {CHAR_KW}    {return CHAR_KW;}
 {BOOL_KW}    {return BOOL_KW;}
 {IF_KW}      {return IF_KW;}
