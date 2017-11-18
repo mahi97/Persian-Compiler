@@ -87,7 +87,7 @@ DEFAULT_KW (پیشفرض)
 CASE_KW (حالت)
 END_KW (تمام)
 WHEN_KW (وقتی)
-RETURN_KW (برگرد)
+RETURN_KW (برگردان)
 BREAK_KW (بشکن)
 OR_KW (یا)
 AND_KW (و)
@@ -100,7 +100,6 @@ LT_KW (<)
 LE_KW (<=)
 EQ_KW (==)
 GE_KW (>=)
-NE_KW (!=)
 
 PLUS_KW  (\+)
 MINUS_KW (-)
@@ -183,7 +182,6 @@ BOOL_CONSTANT {BOOLEAN_CONSTANT_TRUE}|{BOOLEAN_CONSTANT_FALSE}
 {LE_KW} {return LE_KW;}
 {EQ_KW} {return EQ_KW;}
 {GE_KW} {return GE_KW;}
-{NE_KW} {return NE_KW;}
 
 {PLUS_KW}  {return PLUS_KW;}
 {MINUS_KW} {return MINUS_KW;}
