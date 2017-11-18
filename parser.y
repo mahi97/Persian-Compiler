@@ -34,15 +34,24 @@ FILE *fout;
 %token <id> IDENTIFIER
 %token <cval> CHAR_CONSTANT
 
+%left AND_KW OR_KW
+%left XOR_KW ALSO_KW
+%right '='
+%left EQ_KW
+%left LT_KW GT_KW
+%left LE_KW GE_KW
+%left MULT_KW DIV_KW
 %left PLUS_KW MINUS_KW
-%left MULT_KW DIV_KW MOD_KW
-%left AND_KW OR_KW XOR_KW ALSO_KW
-%nonassoc NOT_KW
 
-%right ELSE_KW
+%right NOT_KW
 %right THEN_KW
+%right ELSE_KW
 
 %%
+
+// this is the actual grammar that bison will parse, but for right now it's just
+// something silly to echo to the screen what bison gets from flex.  We'll
+// make a real one shortly:
 
 program : PROGRAM_KW IDENTIFIER declist
 	{
