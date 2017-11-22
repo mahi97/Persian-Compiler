@@ -2,3 +2,5 @@ main
 output.txt
 *.c
 *.o
+.DS_Store
+parser.output
