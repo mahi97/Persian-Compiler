@@ -34,18 +34,15 @@ FILE *fout;
 %token <id> IDENTIFIER
 %token <cval> CHAR_CONSTANT
 
-%left AND_KW OR_KW
-%left XOR_KW ALSO_KW
-%right '='
-%left EQ_KW
-%left LT_KW GT_KW
-%left LE_KW GE_KW
-%left MULT_KW DIV_KW
-%left PLUS_KW MINUS_KW
-
-%right NOT_KW
 %right THEN_KW
 %right ELSE_KW
+%left XOR_KW OR_KW
+%right '='
+%left AND_KW ALSO_KW
+%left EQ_KW LT_KW GT_KW LE_KW GE_KW
+%left PLUS_KW MINUS_KW
+%left MULT_KW DIV_KW MOD_KW
+%right NOT_KW
 
 %%
 
@@ -393,31 +390,26 @@ arthlogicexpr : unaryexpr
   {
     fprintf(fout, "Rule 77 \t\t arthlogicexpr -> unaryexpr \n");
   };
-  | arthlogicexpr arthop arthlogicexpr
+  | arthlogicexpr PLUS_KW arthlogicexpr
   {
     fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
   };
-
-arthop : PLUS_KW
-  {
-    fprintf(fout, "Rule 79 \t\t arthop -> + \n");
-  };
-  | MINUS_KW
-  {
-    fprintf(fout, "Rule 80 \t\t arthop -> -  \n");
-  };
-  | MULT_KW
-  {
-    fprintf(fout, "Rule 81 \t\t arthop -> *  \n");
-  };
-  | DIV_KW
-  {
-    fprintf(fout, "Rule 82 \t\t arthop -> /  \n");
-  };
-  | MOD_KW
-  {
-    fprintf(fout, "Rule 83 \t\t arthop -> MOD_KW  \n");
-  };
+	| arthlogicexpr MINUS_KW arthlogicexpr
+	{
+		fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
+	};
+	| arthlogicexpr MULT_KW arthlogicexpr
+	{
+		fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
+	};
+	| arthlogicexpr DIV_KW arthlogicexpr
+	{
+		fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
+	};
+	| arthlogicexpr MOD_KW arthlogicexpr
+	{
+		fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
+	};
 
 unaryexpr :  unaryop unaryexpr
   {

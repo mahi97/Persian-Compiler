@@ -4,3 +4,5 @@ output.txt
 *.o
 .DS_Store
 parser.output
+a.out
+parser.tab.*

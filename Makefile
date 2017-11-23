@@ -10,3 +10,6 @@ lex.c : lex.lex
 
 clean :
 	rm -rf main lex.o lex.c output.txt
+
+parser.tab.c :
+  bison --verbose -d parser.y
