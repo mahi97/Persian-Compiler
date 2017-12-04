@@ -29,6 +29,8 @@ char symbolTable[100][50];
 int wrong=0;
 int cursor = 0;
 
+int num = 0; // temporary variable numbers
+
 int install_id(char* next) {
   for (int i = 0; i < cursor; i++) {
     if (strcmp(next, symbolTable[i]) == 0) {
@@ -45,31 +47,39 @@ void yyerror(const char *s);
 
 FILE *fout;
 
-
+enum {
+  TYPE_UNKNOWN = -1,
+  TYPE_INT = 0,
+  TYPE_REAL = 1,
+  TYPE_CHAR = 2,
+  TYPE_BOOL = 3
+};
 
 
 %}
 
 %union {
   struct {
-    enum {
-      UNKNOWN_TYPE = -1,
-      INT_TYPE = 0,
-      REAL_TYPE = 1,
-      CHAR_TYPE = 2,
-      BOOL_TYPE = 3
-    };
+
     int type;
+    char* place;
   } E;
 }
+
+
+char* newTemp(int _type, bool isArray) {
+  string* name = new string{"temp"};
+  name += num++;
+  // symbol_table_insert(name, _type, isArray);
+  // return symbol_table_lookup(name).id;
+  return "";
+}
+
 
 
 
 // define the "terminal symbol" token types I'm going to use (in CAPS
 // by convention), and associate each with a field of the union:
-
-
-
 %token PROGRAM_KW STRUCT_KW CONST_KW INT_KW REAL_KW CHAR_KW BOOL_KW IF_KW THEN_KW ELSE_KW SWITCH_KW DEFAULT_KW WHEN_KW RETURN_KW BREAK_KW OR_KW AND_KW XOR_KW ALSO_KW NOT_KW GT_KW LT_KW LE_KW EQ_KW GE_KW PLUS_KW MINUS_KW MULT_KW DIV_KW MOD_KW QUEST_MARK ASSIGN_PLUS ASSIGN_MINUS ASSIGN_MULT ASSIGN_DIV INC_KW DEC_KW CASE_KW END_KW
 %token <E> INT_NUM
 %token <E> REAL_NUM
@@ -558,27 +568,27 @@ constant : int_type
   };
 
 int_type : INT_NUM {
-  // $$.type = E.TYPE_INT;
+  $$.type = TYPE_INT;
   // place = newTemp(INT_NUM,false);
 };
 
 real_type : REAL_NUM {
-  // $$.type = E.TYPE_REAL;
+  $$.type = TYPE_REAL;
   // $$.place = newTemp(REAL_NUM,false);
 };
 
 char_type : CHAR_CONSTANT {
-  // $$.type = E.TYPE_CHAR;
+  $$.type = TYPE_CHAR;
   // $$.place = newTemp(CHAR_CONSTANT,false);
 };
 
 bool_type : BOOL_CONSTANT {
-  // $$.type = E.TYPE_BOOL;
+  $$.type = TYPE_BOOL;
   // $$.place = newTemp(BOOL_CONSTANT,false);
 };
 
 idetifier_type : IDENTIFIER {
-  // $$.place = lexID;
+  $$.place = lexID;
 
 };
 
