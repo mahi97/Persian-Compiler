@@ -1,26 +1,69 @@
 %{
 
-#include <stdio.h>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <cstring>
+#include <sstream>
+#include <cstring>
+using namespace std;
+
 
 // stuff from flex that bison needs to know about:
-//extern "C" int yylex();
-//extern "C" int yyparse();
+// extern "C" int yylex();
+// extern "C" int yyparse();
 extern FILE *yyin;
 extern int yylineno;
 extern char* yytext;
+extern char* lexID;
+extern int lexNum;
+extern double lexReal;
+extern char* lexChar;
+extern bool lexBool;
+extern int yylex(void);
+
+char symbolTable[100][50];
+int wrong=0;
+int cursor = 0;
+
+int install_id(char* next) {
+  for (int i = 0; i < cursor; i++) {
+    if (strcmp(next, symbolTable[i]) == 0) {
+      return i;
+    }
+  }
+
+  strcpy(symbolTable[cursor], next);
+  return cursor++;
+}
+
 
 void yyerror(const char *s);
 
 FILE *fout;
+
+
+
+
 %}
 
 %union {
-	int ival;
-	float rval;
-	_Bool bval;
-	char* id;
-  char cval;
+  struct {
+    enum {
+      UNKNOWN_TYPE = -1,
+      INT_TYPE = 0,
+      REAL_TYPE = 1,
+      CHAR_TYPE = 2,
+      BOOL_TYPE = 3
+    };
+    int type;
+  } E;
 }
+
+
 
 // define the "terminal symbol" token types I'm going to use (in CAPS
 // by convention), and associate each with a field of the union:
@@ -28,12 +71,18 @@ FILE *fout;
 
 
 %token PROGRAM_KW STRUCT_KW CONST_KW INT_KW REAL_KW CHAR_KW BOOL_KW IF_KW THEN_KW ELSE_KW SWITCH_KW DEFAULT_KW WHEN_KW RETURN_KW BREAK_KW OR_KW AND_KW XOR_KW ALSO_KW NOT_KW GT_KW LT_KW LE_KW EQ_KW GE_KW PLUS_KW MINUS_KW MULT_KW DIV_KW MOD_KW QUEST_MARK ASSIGN_PLUS ASSIGN_MINUS ASSIGN_MULT ASSIGN_DIV INC_KW DEC_KW CASE_KW END_KW
-%token <ival> INT_NUM
-%token <rval> REAL_NUM
-%token <bval> BOOL_CONSTANT
-%token <id> IDENTIFIER
-%token <cval> CHAR_CONSTANT
+%token <E> INT_NUM
+%token <E> REAL_NUM
+%token <E> BOOL_CONSTANT
+%token <E> IDENTIFIER
+%token <E> CHAR_CONSTANT
 
+%type <E> idetifier_type
+%type <E> int_type
+%type <E> real_type
+%type <E> bool_type
+%type <E> char_type
+%type <E> program declist dec structdec localdec limitedvardec limitedvartype type vardec varsdecs primiryvardec varIDdec funcdec arg args argstype argsID argID sentence compSent sentences exprSent selectSent caseelement defaultelement repeatSent returnSent argsVector constant argVector call breakSent unvar expr simpleexp variable relativeexp relativeop arthlogicexpr unaryexpr unaryop opera
 %right THEN_KW
 %right ELSE_KW
 %left XOR_KW OR_KW
@@ -50,183 +99,183 @@ FILE *fout;
 // something silly to echo to the screen what bison gets from flex.  We'll
 // make a real one shortly:
 
-program : PROGRAM_KW IDENTIFIER declist
+program : PROGRAM_KW idetifier_type declist
 	{
-		fprintf(fout, "%d: Rule 1 \t\t program -> PROGRAM_KW IDENTIFIER declist \n", yylineno) ;
+		fprintf(fout, "Rule 1 \t\t program -> PROGRAM_KW idetifier_type declist \n") ;
 	};
 
 declist : declist dec
 	{
-		fprintf(fout, "%d: Rule 2 \t\t declist -> declist dec \n", yylineno) ;
+		fprintf(fout, "Rule 2.1 \t\t declist -> declist dec \n") ;
 	};
 	|  dec
 	{
-		fprintf(fout, "%d: Rule 3 \t\t declist -> dec \n", yylineno) ;
+		fprintf(fout, "Rule 2.2 \t\t declist -> dec \n") ;
 	};
 
 dec : structdec
 	{
-		fprintf(fout, "%d: Rule 4 \t\t dec -> structdec \n", yylineno) ;
+		fprintf(fout, "%d: Rule 3.1 \t\t dec -> structdec \n", yylineno) ;
 	};
 	|	 vardec
 	{
-		fprintf(fout, "%d: Rule 5 \t\t dec -> vardec \n", yylineno) ;
+		fprintf(fout, "%d: Rule 3.2 \t\t dec -> vardec \n", yylineno) ;
 	};
 	| funcdec
 	{
-		fprintf(fout, "%d: Rule 6 \t\t dec -> funcdec \n", yylineno) ;
+		fprintf(fout, "%d: Rule 3.3 \t\t dec -> funcdec \n", yylineno) ;
 	};
 
-structdec : STRUCT_KW IDENTIFIER '{' localdec '}'
+structdec : STRUCT_KW idetifier_type '{' localdec '}'
   {
-    fprintf(fout, "%d: Rule 7 \t\t structdec -> STRUCT_KW IDENTIFIER { localdec } \n", yylineno);
+    fprintf(fout, "%d: Rule 4 \t\t structdec -> STRUCT_KW idetifier_type { localdec } \n", yylineno);
   };
 
 localdec : localdec limitedvardec
   {
-    fprintf(fout, "%d: Rule 8 \t\t localdec -> localdec limitedvardec \n", yylineno);
+    fprintf(fout, "%d: Rule 5.1 \t\t localdec -> localdec limitedvardec \n", yylineno);
   };
   | /* empty */
   {
-    fprintf(fout, "%d: Rule 9 \t\t localdec -> e \n", yylineno);
+    fprintf(fout, "%d: Rule 5.2 \t\t localdec -> e \n", yylineno);
   };
 
 limitedvardec : limitedvartype varsdecs ';'
   {
-    fprintf(fout, "%d: Rule 10 \t\t limitedvardec -> limitedvartype varsdecs ; \n", yylineno);
+    fprintf(fout, "%d: Rule 6 \t\t limitedvardec -> limitedvartype varsdecs ; \n", yylineno);
   };
 
 limitedvartype : CONST_KW type
   {
-    fprintf(fout, "%d: Rule 11 \t\t limitedvartype -> CONST_KW type \n", yylineno);
+    fprintf(fout, "%d: Rule 7.1 \t\t limitedvartype -> CONST_KW type \n", yylineno);
   };
   | type
   {
-    fprintf(fout, "%d: Rule 12 \t\t limitedvartype -> type \n", yylineno);
+    fprintf(fout, "%d: Rule 7.2 \t\t limitedvartype -> type \n", yylineno);
   };
 
 type : INT_KW
   {
-    fprintf(fout, "%d: Rule 13 \t\t type -> INT_KW \n", yylineno);
+    fprintf(fout, "%d: Rule 8.1 \t\t type -> INT_KW \n", yylineno);
   };
   | REAL_KW
   {
-    fprintf(fout, "%d: Rule 14 \t\t type : REAL_KW \n", yylineno);
+    fprintf(fout, "%d: Rule 8.2 \t\t type : REAL_KW \n", yylineno);
   };
   | CHAR_KW
   {
-    fprintf(fout, "%d: Rule 15 \t\t type : CHAR_KW \n", yylineno);
+    fprintf(fout, "%d: Rule 8.3 \t\t type : CHAR_KW \n", yylineno);
   };
   | BOOL_KW
   {
-    fprintf(fout, "%d: Rule 16 \t\t type : BOOL_KW \n", yylineno);
+    fprintf(fout, "%d: Rule 8.4 \t\t type : BOOL_KW \n", yylineno);
   };
 
 vardec : type varsdecs ';'
   {
-    fprintf(fout, "%d: Rule 17 \t\t vardec -> type varsdecs ;\n", yylineno);
+    fprintf(fout, "%d: Rule 9 \t\t vardec -> type varsdecs ;\n", yylineno);
   };
 
 varsdecs : primiryvardec
   {
-    fprintf(fout, "%d: Rule 18 \t\t varsdecs -> primiryvardec \n", yylineno);
+    fprintf(fout, "%d: Rule 10.1 \t\t varsdecs -> primiryvardec \n", yylineno);
   };
   | varsdecs ',' primiryvardec
   {
-    fprintf(fout, "%d: Rule 19 \t\t varsdecs -> varsdecs , primiryvardec \n", yylineno);
+    fprintf(fout, "%d: Rule 10.2 \t\t varsdecs -> varsdecs , primiryvardec \n", yylineno);
   };
 
 primiryvardec : varIDdec
   {
-    fprintf(fout, "%d: Rule 20 \t\t primiryvardec -> varIDdec \n", yylineno);
+    fprintf(fout, "%d: Rule 11.1 \t\t primiryvardec -> varIDdec \n", yylineno);
   };
   | varIDdec '=' simpleexp
   {
-    fprintf(fout, "%d: Rule 21 \t\t primiryvardec -> varIDdec = simpleexp \n", yylineno);
+    fprintf(fout, "%d: Rule 11.2 \t\t primiryvardec -> varIDdec = simpleexp \n", yylineno);
   };
 
-varIDdec : IDENTIFIER
+varIDdec : idetifier_type
   {
-    fprintf(fout, "%d: Rule 22 \t\t varIDdec -> IDENTIFIER \n", yylineno);
+    fprintf(fout, "%d: Rule 12.1 \t\t varIDdec -> idetifier_type \n", yylineno);
   };
-  | IDENTIFIER '[' INT_NUM ']'
+  | idetifier_type '[' int_type ']'
   {
-    fprintf(fout, "%d: Rule 23 \t\t varIDdec -> IDENTIFIER [ INT_NUM ] \n", yylineno);
+    fprintf(fout, "%d: Rule 12.2 \t\t varIDdec -> idetifier_type [ int_type ] \n", yylineno);
   };
 
-funcdec : type IDENTIFIER '(' arg ')' sentence
+funcdec : type idetifier_type '(' arg ')' sentence
   {
-    fprintf(fout, "%d: Rule 24 \t\t funcdec -> type IDENTIFIER ( arg ) sentence \n", yylineno);
+    fprintf(fout, "%d: Rule 13.1 \t\t funcdec -> type idetifier_type ( arg ) sentence \n", yylineno);
   };
-  | IDENTIFIER '(' arg ')' sentence
+  | idetifier_type '(' arg ')' sentence
   {
-    fprintf(fout, "%d: Rule 25 \t\t funcdec -> IDENTIFIER ( arg ) sentence \n", yylineno);
+    fprintf(fout, "%d: Rule 13.2 \t\t funcdec -> idetifier_type ( arg ) sentence \n", yylineno);
   };
 
 arg : args
   {
-    fprintf(fout, "%d: Rule 26 \t\t arg -> args \n", yylineno);
+    fprintf(fout, "%d: Rule 14.1 \t\t arg -> args \n", yylineno);
   };
   | /* empty */
   {
-    fprintf(fout, "%d: Rule 27 \t\t arg : e \n", yylineno);
+    fprintf(fout, "%d: Rule 14.2 \t\t arg : e \n", yylineno);
   };
 
 args : args ';' argstype
   {
-    fprintf(fout, "%d: Rule 28 \t\t args -> args ; argstype \n", yylineno);
+    fprintf(fout, "%d: Rule 15.1 \t\t args -> args ; argstype \n", yylineno);
   };
   | argstype
   {
-    fprintf(fout, "%d: Rule 29 \t\t args -> argstype \n", yylineno);
+    fprintf(fout, "%d: Rule 15.2 \t\t args -> argstype \n", yylineno);
   };
 
 argstype : type argsID
   {
-    fprintf(fout, "%d: Rule 30 \t\t argstype -> type argsID \n", yylineno);
+    fprintf(fout, "%d: Rule 16 \t\t argstype -> type argsID \n", yylineno);
   };
 
 argsID : argsID ',' argID
   {
-    fprintf(fout, "Rule 31 \t\t argsID -> argsID , argID \n");
+    fprintf(fout, "Rule 17.1 \t\t argsID -> argsID , argID \n");
   };
   | argID
   {
-    fprintf(fout, "Rule 32 \t\t argsID -> argID \n");
+    fprintf(fout, "Rule 17.2 \t\t argsID -> argID \n");
   };
 
-argID : IDENTIFIER
+argID : idetifier_type
   {
-    fprintf(fout, "Rule 33 \t\t argID -> IDENTIFIER \n");
+    fprintf(fout, "Rule 18.1 \t\t argID -> idetifier_type \n");
   };
-  | IDENTIFIER '[' ']'
+  | idetifier_type '[' ']'
   {
-    fprintf(fout, "Rule 34 \t\t argID : IDENTIFIER [ ] \n");
+    fprintf(fout, "Rule 18.2 \t\t argID : idetifier_type [ ] \n");
   };
 
 sentence : compSent
   {
-    fprintf(fout, "Rule 35 \t\t sentence -> compSent \n");
+    fprintf(fout, "Rule 19.1 \t\t sentence -> compSent \n");
   };
   | exprSent
   {
-    fprintf(fout, "Rule 36 \t\t sentence -> exprSent \n");
+    fprintf(fout, "Rule 19.2 \t\t sentence -> exprSent \n");
   };
   | selectSent
   {
-    fprintf(fout, "Rule 37 \t\t sentence -> selectSent \n");
+    fprintf(fout, "Rule 19.3 \t\t sentence -> selectSent \n");
   };
   | repeatSent
   {
-    fprintf(fout, "Rule 38 \t\t sentence -> repeatSent \n");
+    fprintf(fout, "Rule 19.4 \t\t sentence -> repeatSent \n");
   };
   | returnSent
   {
-    fprintf(fout, "Rule 39 \t\t sentence -> returnSent \n");
+    fprintf(fout, "Rule 19.5 \t\t sentence -> returnSent \n");
   };
   | breakSent
   {
-    fprintf(fout, "Rule 40 \t\t sentence -> breakSent \n");
+    fprintf(fout, "Rule 19.6 \t\t sentence -> breakSent \n");
   };
 
 compSent : '{' localdec sentences '}'
@@ -265,13 +314,13 @@ selectSent : IF_KW simpleexp THEN_KW sentence
     fprintf(fout, "Rule 48 \t\t selectSent -> SWITCH_KW '(' simpleexp ')' caseelement defaultelement END_KW \n");
   };
 
-caseelement : CASE_KW INT_NUM ':' sentence ';'
+caseelement : CASE_KW int_type ':' sentence ';'
   {
-    fprintf(fout, "Rule 49 \t\t caseelement -> CASE_KW INT_NUM : sentence ; \n");
+    fprintf(fout, "Rule 49 \t\t caseelement -> CASE_KW int_type : sentence ; \n");
   };
-  | caseelement CASE_KW INT_NUM ':' sentence ';'
+  | caseelement CASE_KW int_type ':' sentence ';'
   {
-    fprintf(fout, "Rule 50 \t\t caseelement -> caseelement CASE_KW INT_NUM : sentence ; \n");
+    fprintf(fout, "Rule 50 \t\t caseelement -> caseelement CASE_KW int_type : sentence ; \n");
   };
 
 defaultelement : DEFAULT_KW ':' sentence ';'
@@ -442,17 +491,17 @@ opera : variable
     fprintf(fout, "Rule 90 \t\t opera -> unvar \n");
   };
 
-variable : IDENTIFIER
+variable : idetifier_type
   {
-    fprintf(fout, "Rule 91 \t\t variable -> IDENTIFIER \n");
+    fprintf(fout, "Rule 91 \t\t variable -> idetifier_type \n");
   };
   | variable '[' expr ']'
   {
     fprintf(fout, "Rule 92 \t\t variable -> variable [ expr ] \n");
   };
-  | variable '.' IDENTIFIER
+  | variable '.' idetifier_type
   {
-    fprintf(fout, "Rule 93 \t\t variable : variable . IDENTIFIER \n");
+    fprintf(fout, "Rule 93 \t\t variable : variable . idetifier_type \n");
   };
 
 unvar : '(' expr ')'
@@ -468,9 +517,9 @@ unvar : '(' expr ')'
     fprintf(fout, "Rule 96 \t\t unvar : constant \n");
   };
 
-call : IDENTIFIER '(' argVector ')'
+call : idetifier_type '(' argVector ')'
   {
-    fprintf(fout, "Rule 97 \t\t call -> IDENTIFIER '(' argVector ')' \n");
+    fprintf(fout, "Rule 97 \t\t call -> idetifier_type '(' argVector ')' \n");
   };
 
 argVector : argsVector
@@ -491,22 +540,47 @@ argsVector : argsVector ',' expr
     fprintf(fout, "Rule 101 \t\t argsVector -> expr \n");
   };
 
-constant : INT_NUM
+constant : int_type
   {
-    fprintf(fout, "Rule 102 \t\t constant : INT_NUM \n");
+    fprintf(fout, "Rule 102 \t\t constant : int_type \n");
   };
-  | REAL_NUM
+  | real_type
   {
-    fprintf(fout, "Rule 103 \t\t constant : REAL_NUM \n");
+    fprintf(fout, "Rule 103 \t\t constant : real_type \n");
   };
-  | CHAR_CONSTANT
+  | char_type
   {
     fprintf(fout, "Rule 104 \t\t constant : CHAR_CONSTANT \n");
   };
-  | BOOL_CONSTANT
+  | bool_type
   {
     fprintf(fout, "Rule 105 \t\t constant : BOOLEAN_CONSTANT \n");
   };
+
+int_type : INT_NUM {
+  // $$.type = E.TYPE_INT;
+  // place = newTemp(INT_NUM,false);
+};
+
+real_type : REAL_NUM {
+  // $$.type = E.TYPE_REAL;
+  // $$.place = newTemp(REAL_NUM,false);
+};
+
+char_type : CHAR_CONSTANT {
+  // $$.type = E.TYPE_CHAR;
+  // $$.place = newTemp(CHAR_CONSTANT,false);
+};
+
+bool_type : BOOL_CONSTANT {
+  // $$.type = E.TYPE_BOOL;
+  // $$.place = newTemp(BOOL_CONSTANT,false);
+};
+
+idetifier_type : IDENTIFIER {
+  // $$.place = lexID;
+
+};
 
 %%
 

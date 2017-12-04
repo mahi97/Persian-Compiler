@@ -5,48 +5,87 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <math.h>
 #include "parser.tab.h"
 
-char symbolTable[100][50];
-int wrong=0;
-int cursor = 0;
+using namespace std;
 
-int install_id(char* next) {
+char* lexID;
+int lexNum;
+double lexReal;
+char* lexChar;
+bool lexBool;
 
-	for (int i = 0; i < cursor; i++) {
-		if (strcmp(next, symbolTable[i]) == 0) {
-			return i;
+double toReal(char* real_num) {
+	int i = 0;
+	int count = 0,count2 = 0;
+	int res[50];
+	bool intPart = true;
+	while(real_num[i] != '\0') {
+		if (real_num[0] == '.') {
+			intPart = false;
+			continue;
 		}
-	}
+		if (intPart) {
+			int num = real_num[i];
+			if (num >= 0 && num <= 255) {
+				res[count] = atoi(&real_num[i]);
+				count++;
+			} else {
+				if (num != -37) {
+					res[count] = num + 80;
+					count++;
+				}
+			}
+		} else {
+			int num = real_num[i];
+			if (num >= 0 && num <= 255) {
+				res[count+count2] = atoi(&real_num[i]);
+				count2++;
+			} else {
+				if (num != -37) {
+					res[count+count2] = num + 80;
+					count2++;
+				}
+			}
+		}
+		i++;
 
-	strcpy(symbolTable[cursor], next);
-	return cursor++;
+	}
+	double r = 0;
+	for (int j = 0; j < count; j++) {
+		r += res[j] * pow(10,count-j-1);
+	}
+	for (int j = 0; j < count2; j++) {
+		r += res[count + j] * pow(0.1,count2-j);
+	}
+	return r;
 }
 
-// int toNum(char* INT_NUM) {
-// 	int i = 0;
-// 	int count = 0;
-// 	int res[50];
-// 	while(INT_NUM[i] != '\0') {
-// 		int num = INT_NUM[i];
-// 		if (num >= 0 && num <= 255) {
-// 			res[count] = atoi(&INT_NUM[i]);
-// 			count++;
-// 		} else {
-// 			if (num != -37) {
-// 				res[count] = num + 80;
-// 				count++;
-// 			}
-// 		}
-// 		i++;
-// 	}
-// 	int r = 0;
-// 	for (int j = 0; j < count; j++) {
-// 		r += res[j]*pow(10,count-j-1);
-// 	}
-// 	return r;
-// }
+int toNum(char* int_num) {
+	int i = 0;
+	int count = 0;
+	int res[50];
+	while(int_num[i] != '\0') {
+		int num = int_num[i];
+		if (num >= 0 && num <= 255) {
+			res[count] = atoi(&int_num[i]);
+			count++;
+		} else {
+			if (num != -37) {
+				res[count] = num + 80;
+				count++;
+			}
+		}
+		i++;
+	}
+	int r = 0;
+	for (int j = 0; j < count; j++) {
+		r += res[j]*pow(10,count-j-1);
+	}
+	return r;
+}
 
 char* toChar(char* harf) {
 	if (strcmp(harf, "\'\\n\'") == 0) {
@@ -59,6 +98,8 @@ char* toChar(char* harf) {
 		return harf;
 	}
 }
+
+
 
 %}
 
@@ -158,6 +199,7 @@ BOOL_CONSTANT {BOOLEAN_CONSTANT_TRUE}|{BOOLEAN_CONSTANT_FALSE}
 {THEN_KW}    {return THEN_KW;}
 {ELSE_KW}    {return ELSE_KW;}
 {SWITCH_KW}  {return SWITCH_KW;}
+{CASE_KW}    {return CASE_KW;}
 {END_KW}     {return END_KW;}
 {DEFAULT_KW} {return DEFAULT_KW;}
 {WHEN_KW}    {return WHEN_KW;}
@@ -171,11 +213,11 @@ BOOL_CONSTANT {BOOLEAN_CONSTANT_TRUE}|{BOOLEAN_CONSTANT_FALSE}
 
 
 {BOOL_CONSTANT} {return BOOL_CONSTANT;}
-{CHAR_CONSTANT} {return CHAR_CONSTANT;}
-{INT_NUM} {return INT_NUM;}
-{REAL_NUM} {return REAL_NUM;}
+{CHAR_CONSTANT} {lexChar = toChar(yytext); return CHAR_CONSTANT;}
+{INT_NUM} {lexNum = toNum(yytext); return INT_NUM;}
+{REAL_NUM} {lexReal = toReal(yytext); return REAL_NUM;}
 
-{IDENTIFIER}    {install_id(yytext); return IDENTIFIER;}
+{IDENTIFIER}    {lexID = yytext;return IDENTIFIER;}
 
 {GT_KW} {return GT_KW;}
 {LT_KW} {return LT_KW;}
