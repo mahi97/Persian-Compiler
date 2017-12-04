@@ -55,6 +55,33 @@ enum {
   TYPE_BOOL = 3
 };
 
+struct symbolTableEntry {
+    string id;
+    string type;
+    bool is_array = false;
+    vector <symbolTableEntry> *forward = NULL;
+    vector <symbolTableEntry> *backward = NULL;
+    int uid = 0;
+};
+
+void symbolTableInsert(string* _id, int _type, bool _isArray) {
+
+}
+
+symbolTableEntry symbolTableLookup(string* _id) {
+  symbolTableEntry a;
+  return a;
+}
+
+char* newTemp(int _type, bool _isArray) {
+  string* name = new string{"temp"};
+  name += num++;
+  symbolTableInsert(name, _type, _isArray);
+  char* c = (char*) malloc(sizeof(char) * 100);
+  strcpy(c,symbolTableLookup(name).id.c_str());
+  return c;
+}
+
 
 %}
 
@@ -65,18 +92,6 @@ enum {
     char* place;
   } E;
 }
-
-
-char* newTemp(int _type, bool isArray) {
-  string* name = new string{"temp"};
-  name += num++;
-  // symbol_table_insert(name, _type, isArray);
-  // return symbol_table_lookup(name).id;
-  return "";
-}
-
-
-
 
 // define the "terminal symbol" token types I'm going to use (in CAPS
 // by convention), and associate each with a field of the union:
