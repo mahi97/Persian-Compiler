@@ -1,15 +1,20 @@
+all : lex parse compiler run
+debug : lex parser-debug compiler run
 
-main : lex.o
-	cc -o main lex.o -ll
+parse :
+	bison -d parser.y
 
-lex.o : lex.c
-	cc -c -o lex.o lex.c
+parser-debug :
+	bision --verbose -d parser.y
 
-lex.c : lex.lex
-	lex -t lex.lex > lex.c
+compiler:
+	g++ -std=c++14 lex.yy.c  parser.tab.h parser.tab.c -o parser.out
+
+lex : lex.lex
+	flex lex.lex
+
+run :
+	./parser.out
 
 clean :
-	rm -rf main lex.o lex.c output.txt
-
-parser.tab.c :
-  bison --verbose -d parser.y
+	rm -rf parser.out lex.o lex.c output.txt parser.tab.h parser.tab.c lex.yy.c parser.output
