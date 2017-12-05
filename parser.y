@@ -55,6 +55,9 @@ enum {
   TYPE_BOOL = 3
 };
 
+/*** Symbol Table ***/
+
+
 struct symbolTableEntry {
     string id;
     string type;
@@ -372,24 +375,65 @@ breakSent : BREAK_KW ';'
     fprintf(fout, "Rule 55 \t\t breakSent -> BREAK_KW ; \n");
   };
 
-expr : variable '=' expr
+expr : variable '=' expr M
   {
+	if($3.type == boolean)
+	{
+	  backpatch($3.truelist,$4.quad);
+      backpatch($3.falselist,$4.quad + 2);
+	  emit($1.place '=' '1');
+	  emit('goto' $4.quad + 3);
+	  emit($1.place '=' '0');
+	}else
+	{
+	}
     fprintf(fout, "Rule 56 \t\t expr -> variable = expr \n");
   };
-  | variable ASSIGN_PLUS expr
+  | variable ASSIGN_PLUS expr M
   {
+	if($3.type == boolean)
+	{
+	  backpatch($3.truelist,$4.quad);
+      backpatch($3.falselist,$4.quad + 1);
+	  emit($1.place '=' $1.place '+' '1');
+
+	}else
+	{
+	}
     fprintf(fout, "Rule 57 \t\t expr -> variable += expr \n");
   };
-  | variable ASSIGN_MINUS expr
+  | variable ASSIGN_MINUS expr M
   {
+	if($3.type == boolean)
+	{
+	  backpatch($3.truelist,$4.quad);
+      backpatch($3.falselist,$4.quad + 1);
+	  emit($1.place '=' $1.place '-' '1');
+	}else
+	{
+	}
     fprintf(fout, "Rule 58 \t\t expr -> variable -= expr \n");
   };
-  | variable ASSIGN_MULT expr
+  | variable ASSIGN_MULT expr M
   {
+	if($3.type == boolean)
+	{
+	  backpatch($3.truelist,$4.quad + 1);
+      backpatch($3.falselist,$4.quad);
+	  emit($1.place '=' '0');
+	}else
+	{
+	}
     fprintf(fout, "Rule 59 \t\t expr -> variable *= expr \n");
   };
-  | variable ASSIGN_DIV expr
+  | variable ASSIGN_DIV expr M
   {
+	if($3.type == boolean)
+	{
+	//error because % 0 and % 1 can not be defined
+	}else
+	{
+	}
     fprintf(fout, "Rule 60 \t\t expr -> variable /= expr \n");
   };
   | variable INC_KW
@@ -402,16 +446,28 @@ expr : variable '=' expr
   };
   | simpleexp
   {
-    fprintf(fout, "Rule 63 \t\t expr -> simpleexp \n");
+	$$.truelist = $1.truelist;
+	$$.falselist = $1.falselist;
+	$$.type = $1.type;
+	fprintf(fout, "Rule 63 \t\t expr -> simpleexp \n");
   };
 
-simpleexp : simpleexp OR_KW simpleexp
+
+simpleexp : simpleexp OR_KW M simpleexp
   {
+    backpatch($1.falselist,$3.quad);
+	$$.truelist = merge($1.truelist,$4.truelist);
+	$$.falselist = $4.falselist;
+	$$.type = boolean;
     fprintf(fout, "Rule 64 \t\t simpleexp -> simpleexp OR simpleexp \n");
   };
-  | simpleexp AND_KW simpleexp
+  | simpleexp AND_KW M simpleexp
   {
-    fprintf(fout, "Rule 65 \t\t simpleexp -> simpleexp AND simpleexp \n");
+	backpatch($1.truelist,$3.quad);
+	$$.truelist = $4.truelist;
+	$$.falselist = merge($1.falselist,$4.falselist);
+    $$.type = boolean;
+	fprintf(fout, "Rule 65 \t\t simpleexp -> simpleexp AND simpleexp \n");
   };
   | simpleexp XOR_KW simpleexp
   {
@@ -423,20 +479,32 @@ simpleexp : simpleexp OR_KW simpleexp
   };
   | NOT_KW simpleexp
   {
+	$$.truelist = $2.falselist;
+	$$.falselist = $2.truelist;
+	$$.type = boolean;
     fprintf(fout, "Rule 68 \t\t simpleexp -> NOT simpleexp \n");
   };
   | relativeexp
   {
+	$$.turelist = $1.truelist;
+	$$.falselist = $2.falselist;
+	$$.type = boolean;
     fprintf(fout, "Rule 69 \t\t simpleexp -> relativeexp \n");
   };
 
 relativeexp : arthlogicexpr
   {
+	$$.truelist = $1.truelist;
+	$$.falselist = $2.falselist;
     fprintf(fout, "Rule 70 \t\t relativeexp -> arthlogicexpr \n");
   };
   | arthlogicexpr relativeop arthlogicexpr
   {
-    fprintf(fout, "Rule 71 \t\t relativeexp -> arthlogicexpr relativeop arthlogicexpr \n");
+	$$.truelist = makelist(nextquad);
+    $$.falselist = makelist(nextquad + 1);
+	emit('if' $1.place $2.op $3.place 'goto' unknown);
+	emit('goto' unknown);
+	fprintf(fout, "Rule 71 \t\t relativeexp -> arthlogicexpr relativeop arthlogicexpr \n");
   };
 
 relativeop : LT_KW
@@ -468,22 +536,23 @@ arthlogicexpr : unaryexpr
   {
     fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
   };
-	| arthlogicexpr MINUS_KW arthlogicexpr
-	{
-		fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
-	};
-	| arthlogicexpr MULT_KW arthlogicexpr
-	{
-		fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
-	};
-	| arthlogicexpr DIV_KW arthlogicexpr
-	{
-		fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
-	};
-	| arthlogicexpr MOD_KW arthlogicexpr
-	{
-		fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
-	};
+  | arthlogicexpr  MINUS_KW arthlogicexpr
+  {
+
+	fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
+  };
+  | arthlogicexpr  MULT_KW arthlogicexpr
+  {
+	fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
+  };
+  | arthlogicexpr  DIV_KW arthlogicexpr
+  {
+	fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
+  };
+  | arthlogicexpr  MOD_KW arthlogicexpr
+  {
+	fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
+  };
 
 unaryexpr :  unaryop unaryexpr
   {
@@ -606,6 +675,11 @@ idetifier_type : IDENTIFIER {
   $$.place = lexID;
 
 };
+
+M : /* empty */
+  {
+  $$.quad = nextquad;
+  };
 
 %%
 
