@@ -5,16 +5,16 @@ parse :
 	bison -d parser.y
 
 parser-debug :
-	bision --verbose -d parser.y
+	bison --verbose -d parser.y
 
 compiler:
-	g++ -std=c++14 lex.yy.c  parser.tab.h parser.tab.c -o parser.out
+	clang++ -std=c++14 lex.yy.c llist.cpp llist.h parser.tab.h parser.tab.c
 
 lex : lex.lex
 	flex lex.lex
 
 run :
-	./parser.out
+	./a.out
 
 clean :
-	rm -rf parser.out lex.o lex.c output.txt parser.tab.h parser.tab.c lex.yy.c parser.output
+	rm -rf a.out lex.o lex.c output.txt parser.tab.h parser.tab.c lex.yy.c parser.output

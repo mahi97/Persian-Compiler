@@ -9,6 +9,8 @@
 #include <cstring>
 #include <sstream>
 #include <cstring>
+#include <list>
+#include "llist.h"
 using namespace std;
 
 
@@ -28,7 +30,7 @@ extern int yylex(void);
 char symbolTable[100][50];
 int wrong=0;
 int cursor = 0;
-
+int nextquad = 0;
 int num = 0; // temporary variable numbers
 
 int install_id(char* next) {
@@ -56,8 +58,6 @@ enum {
 };
 
 /*** Symbol Table ***/
-
-
 struct symbolTableEntry {
     string id;
     string type;
@@ -85,6 +85,105 @@ char* newTemp(int _type, bool _isArray) {
   return c;
 }
 
+llist* makelist(int _data) {
+  node* n = create_node(_data);
+  llist* l = new llist;
+  l->head = n;
+  l->tail = nullptr;
+  return l;
+}
+
+// END_OF_SYMBOL_TABLE
+
+/*** Quadruples ***/
+
+// // Quadruple
+/*  ______________________________________________________________________________
+ * |                                                                              |
+ * |                                  Quadruples                                  |
+ * |______________________________________________________________________________|
+ * |              Statement             | Operation |    Arg0   |  Arg1 |  Result |
+ * |____________________________________|___________|___________|_______|_________|
+ * |               goto L               |    goto   |           |       |    L    |
+ * |       if BOOLEAN then goto L       |   check   |  BOOLEAN  |       |    L    |
+ * |             E = E1 < E2            |     <     |     E1    |   E2  |    E    |
+ * |            E = E1 <= E2            |     <=    |     E1    |   E2  |    E    |
+ * |             E = E1 > E2            |     >     |     E1    |   E2  |    E    |
+ * |            E = E1 >= E2            |     >=    |     E1    |   E2  |    E    |
+ * |            E = E1 == E2            |     =     |     E1    |   E2  |    E    |
+ * |            E = E1 <> E2            |     <>    |     E1    |   E2  |    E    |
+ * |             E = E1 + E2            |     +     |     E1    |   E2  |    E    |
+ * |             E = E1 - E2            |     -     |     E1    |   E2  |    E    |
+ * |             E = E1 * E2            |     *     |     E1    |   E2  |    E    |
+ * |             E = E1 / E2            |     /     |     E1    |   E2  |    E    |
+ * |             E = E1 % E2            |     %     |     E1    |   E2  |    E    |
+ * |               E = -E1              |    usub   |     E1    |       |    E    |
+ * |               E = E1               |     :=    |     E1    |       |    E    |
+ * |            E = (TYPE) E1           |    cast   |     E1    |  TYPE |    E    |
+ * |               TYPE E               |    init   |           |  TYPE |    E    |
+ * |         printf("E = E.val")        |   iprint  |           |       |   int   |
+ * |         printf("E = E.val")        |   rprint  |           |       |   real  |
+ * |         printf("E = E.val")        |   cprint  |           |       |   char  |
+ * |         printf("E = E.val")        |   bprint  |           |       | boolean |
+ * |  printf("E[PLACE] = E[INDEX].val") |  aiprint  |   PLACE   | INDEX |   int   |
+ * |  printf("E[PLACE] = E[INDEX].val") |  arprint  |   PLACE   | INDEX |   real  |
+ * |  printf("E[PLACE] = E[INDEX].val") |  acprint  |   PLACE   | INDEX |   char  |
+ * |  printf("E[PLACE] = E[INDEX].val") |  abprint  |   PLACE   | INDEX | boolean |
+ * | NAME = malloc(sizeOf(TYPE) * SIZE) |   malloc  |    TYPE   |  SIZE |   NAME  |
+ * |          *(E + INDEX) = E1         |    []=    |     E1    | INDEX |    E    |
+ * |          E = *(E1 + INDEX)         |    =[]    |     E1    | INDEX |    E    |
+ * |____________________________________|___________|___________|_______|_________|
+ */
+
+struct Quadruple
+{
+  Quadruple(string _op, string _arg1, string _arg2, string _res) :
+  operation(_op),
+  arg1(_arg1),
+  arg2(_arg2),
+  result(_res)
+  {
+
+  }
+  string operation;
+  string arg1;
+  string arg2;
+  string result;
+};
+
+vector <Quadruple*> quadruples;
+
+void emit(string _op, string _arg1, string _arg2, string _result) {
+  nextquad++;
+  quadruples.push_back(new Quadruple(_op, _arg1, _arg2, _result));
+}
+
+void backpatch(struct llist* _head, int _label) {
+  struct node* current;
+  for (current = _head->head; current != nullptr; current = current->next) {
+    quadruples[current->data]->result = _label;
+  }
+}
+
+void fillQuad(int i, int j, string _data) {
+  switch(j) {
+    case 0: 
+      quadruples[i]->operation = _data;
+      break;
+    case 1: 
+      quadruples[i]->arg1      = _data;
+      break;
+    case 2: 
+      quadruples[i]->arg2      = _data;
+      break;
+    case 3: 
+      quadruples[i]->result    = _data;
+      break;
+    default:
+      printf("Wrong index%d\n", j);
+  }
+}
+// END_OF_QUADRUPLES
 
 %}
 
@@ -93,6 +192,9 @@ char* newTemp(int _type, bool _isArray) {
 
     int type;
     char* place;
+    struct llist* truelist;
+    struct llist* falselist;
+    int quad;
   } E;
 }
 
@@ -111,6 +213,7 @@ char* newTemp(int _type, bool _isArray) {
 %type <E> bool_type
 %type <E> char_type
 %type <E> program declist dec structdec localdec limitedvardec limitedvartype type vardec varsdecs primiryvardec varIDdec funcdec arg args argstype argsID argID sentence compSent sentences exprSent selectSent caseelement defaultelement repeatSent returnSent argsVector constant argVector call breakSent unvar expr simpleexp variable relativeexp relativeop arthlogicexpr unaryexpr unaryop opera
+%type <E> M
 %right THEN_KW
 %right ELSE_KW
 %left XOR_KW OR_KW
@@ -377,72 +480,82 @@ breakSent : BREAK_KW ';'
 
 expr : variable '=' expr M
   {
-	if($3.type == boolean)
-	{
+	if($3.type == TYPE_BOOL) {
 	  backpatch($3.truelist,$4.quad);
-      backpatch($3.falselist,$4.quad + 2);
-	  emit($1.place '=' '1');
-	  emit('goto' $4.quad + 3);
-	  emit($1.place '=' '0');
-	}else
-	{
+    backpatch($3.falselist,$4.quad + 2);
+	  emit("=", "1", "", $1.place);
+	  emit("goto", "", "", std::to_string($4.quad + 3));
+	  emit("=", "0", "",$1.place);
+	} else {
+    $$.type = $1.type;
+    emit("=", $3.place, "", $1.place);
 	}
     fprintf(fout, "Rule 56 \t\t expr -> variable = expr \n");
   };
   | variable ASSIGN_PLUS expr M
   {
-	if($3.type == boolean)
-	{
+	if($3.type == TYPE_BOOL) {
 	  backpatch($3.truelist,$4.quad);
-      backpatch($3.falselist,$4.quad + 1);
-	  emit($1.place '=' $1.place '+' '1');
+    backpatch($3.falselist,$4.quad + 1);
+	  emit("+", $1.place, "1", $1.place);
 
-	}else
-	{
-	}
+	} else {
+	   $$.type = $1.type;
+     emit("+", $3.place, $1.place, $1.place);
+  }
     fprintf(fout, "Rule 57 \t\t expr -> variable += expr \n");
   };
   | variable ASSIGN_MINUS expr M
   {
-	if($3.type == boolean)
+	if($3.type == TYPE_BOOL)
 	{
 	  backpatch($3.truelist,$4.quad);
-      backpatch($3.falselist,$4.quad + 1);
-	  emit($1.place '=' $1.place '-' '1');
+    backpatch($3.falselist,$4.quad + 1);
+	  emit("-", $1.place, "1", $1.place);
 	}else
 	{
+    $$.type = $1.type;
+    emit("-", $1.place, $3.place, $1.place);
 	}
     fprintf(fout, "Rule 58 \t\t expr -> variable -= expr \n");
   };
   | variable ASSIGN_MULT expr M
   {
-	if($3.type == boolean)
+	if($3.type == TYPE_BOOL)
 	{
 	  backpatch($3.truelist,$4.quad + 1);
-      backpatch($3.falselist,$4.quad);
-	  emit($1.place '=' '0');
+    backpatch($3.falselist,$4.quad);
+	  emit("=", "0", "", $1.place);
 	}else
 	{
+    $$.type = $1.type;
+    emit("*", $1.place, $3.place, $1.place);
 	}
     fprintf(fout, "Rule 59 \t\t expr -> variable *= expr \n");
   };
   | variable ASSIGN_DIV expr M
   {
-	if($3.type == boolean)
+	if($3.type == TYPE_BOOL)
 	{
 	//error because % 0 and % 1 can not be defined
 	}else
 	{
+    $$.type = $1.type;
+    emit("/", $1.place, $3.place, $1.place);
 	}
     fprintf(fout, "Rule 60 \t\t expr -> variable /= expr \n");
   };
   | variable INC_KW
   {
     fprintf(fout, "Rule 61 \t\t expr -> variable ++ \n");
+    $$.type = $1.type;
+    emit("+", $1.place, "1", $1.place);
   };
   | variable DEC_KW expr
   {
     fprintf(fout, "Rule 62 \t\t expr -> variable -- \n");
+    $$.type = $1.type;
+    emit("-", $1.place, "1", $1.place);
   };
   | simpleexp
   {
@@ -456,17 +569,17 @@ expr : variable '=' expr M
 simpleexp : simpleexp OR_KW M simpleexp
   {
     backpatch($1.falselist,$3.quad);
-	$$.truelist = merge($1.truelist,$4.truelist);
+	$$.truelist = merge_lists($1.truelist,$4.truelist);
 	$$.falselist = $4.falselist;
-	$$.type = boolean;
+	$$.type = TYPE_BOOL;
     fprintf(fout, "Rule 64 \t\t simpleexp -> simpleexp OR simpleexp \n");
   };
   | simpleexp AND_KW M simpleexp
   {
 	backpatch($1.truelist,$3.quad);
 	$$.truelist = $4.truelist;
-	$$.falselist = merge($1.falselist,$4.falselist);
-    $$.type = boolean;
+	$$.falselist = merge_lists($1.falselist,$4.falselist);
+    $$.type = TYPE_BOOL;
 	fprintf(fout, "Rule 65 \t\t simpleexp -> simpleexp AND simpleexp \n");
   };
   | simpleexp XOR_KW simpleexp
@@ -481,76 +594,269 @@ simpleexp : simpleexp OR_KW M simpleexp
   {
 	$$.truelist = $2.falselist;
 	$$.falselist = $2.truelist;
-	$$.type = boolean;
+	$$.type = TYPE_BOOL;
     fprintf(fout, "Rule 68 \t\t simpleexp -> NOT simpleexp \n");
   };
   | relativeexp
   {
-	$$.turelist = $1.truelist;
-	$$.falselist = $2.falselist;
-	$$.type = boolean;
+	$$.truelist = $1.truelist;
+	$$.falselist = $1.falselist; // TODO : Changed
+	$$.type = TYPE_BOOL;
     fprintf(fout, "Rule 69 \t\t simpleexp -> relativeexp \n");
   };
 
 relativeexp : arthlogicexpr
   {
+  $$.type = TYPE_BOOL;
 	$$.truelist = $1.truelist;
-	$$.falselist = $2.falselist;
+	$$.falselist = $1.falselist; // TODO : Changed
     fprintf(fout, "Rule 70 \t\t relativeexp -> arthlogicexpr \n");
   };
   | arthlogicexpr relativeop arthlogicexpr
   {
+  $$.type = TYPE_BOOL;
 	$$.truelist = makelist(nextquad);
-    $$.falselist = makelist(nextquad + 1);
-	emit('if' $1.place $2.op $3.place 'goto' unknown);
-	emit('goto' unknown);
+  $$.falselist = makelist(nextquad + 1);
+  emit($2.place, $1.place, $3.place, $$.place);
+	emit("ifgoto", $$.place,"", "");
+	emit("goto", "", "", "");
 	fprintf(fout, "Rule 71 \t\t relativeexp -> arthlogicexpr relativeop arthlogicexpr \n");
   };
 
 relativeop : LT_KW
   {
+    strcpy($$.place,"<");
     fprintf(fout, "Rule 72 \t\t relativeop -> < \n");
   };
   | LE_KW
   {
+    strcpy($$.place,"<=");
     fprintf(fout, "Rule 73 \t\t relativeop -> <= \n");
   };
   | EQ_KW
   {
+    strcpy($$.place,"==");
     fprintf(fout, "Rule 74 \t\t relativeop -> == \n");
   };
   | GE_KW
   {
+    strcpy($$.place,">=");
     fprintf(fout, "Rule 75 \t\t relativeop -> >= \n");
   };
   | GT_KW
   {
+    strcpy($$.place,">");
     fprintf(fout, "Rule 76 \t\t relativeop -> > \n");
   };
 
 arthlogicexpr : unaryexpr
   {
+	$$.type = $1.type;
     fprintf(fout, "Rule 77 \t\t arthlogicexpr -> unaryexpr \n");
   };
-  | arthlogicexpr PLUS_KW arthlogicexpr
+  | arthlogicexpr PLUS_KW M arthlogicexpr
   {
+	$$.place = newTemp($1.type, false);
+	if($1.type == TYPE_BOOL && $4.type == TYPE_BOOL)
+	{
+	  backpatch($1.truelist,nextquad);
+	  backpatch($1.falselist,nextquad + 2);
+	  backpatch($4.truelist,nextquad + 4);
+	  backpatch($4.falselist,nextquad + 6);
+	  emit("=","1", "",$1.place);
+	  emit("goto","","", std::to_string(nextquad + 3));
+	  emit("=", "0", "",$1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("=", "1", "", $4.place);
+	  emit("goto", "", "", std::to_string(nextquad + 7));
+	  emit("=", "0", "", $4.place);
+	  emit("+", $1.place, $4.place,$$.place);
+	} else if($1.type == TYPE_BOOL && $4.type != TYPE_BOOL)
+	{
+	  backpatch($1.truelist,nextquad + 1);
+	  backpatch($1.falselist,nextquad + 3);
+	  emit("goto", "", "", std::to_string(nextquad + 5));
+	  emit("=", "1", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("=", "0", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("+", $1.place, $4.place, $$.place);
+	}else if($1.type != TYPE_BOOL && $4.type == TYPE_BOOL)
+	{
+	  backpatch($4.truelist,nextquad);
+	  backpatch($4.falselist,nextquad + 2);
+	  emit("=", "1", "", $4.place);
+	  emit("goto", "", "", std::to_string(nextquad + 3));
+	  emit("=", "0", "", $4.place);
+	  emit("=", $1.place, $4.place, $$.place);
+	}else if($1.type != TYPE_BOOL && $4.type == TYPE_BOOL)
+	{
+	  
+	}
     fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
   };
-  | arthlogicexpr  MINUS_KW arthlogicexpr
+  | arthlogicexpr  MINUS_KW M arthlogicexpr
   {
-
+	$$.place = newTemp($1.type, false);
+	if($1.type == TYPE_BOOL && $4.type == TYPE_BOOL)
+	{
+	  backpatch($1.truelist,nextquad);
+	  backpatch($1.falselist,nextquad + 2);
+	  backpatch($4.truelist,nextquad + 4);
+	  backpatch($4.falselist,nextquad + 6);
+	  emit("=", "1", "", $1.place);
+	  emit("goto", "", "", std::to_string(nextquad + 3));
+	  emit("=", "0", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("=", "1", "", $4.place);
+	  emit("goto", "", "", std::to_string(nextquad + 7));
+	  emit("=", "0", "", $4.place);
+	  emit("-", $1.place, $4.place, $$.place);
+	}else if($1.type == TYPE_BOOL && $4.type != TYPE_BOOL)
+	{
+	  backpatch($1.truelist,nextquad + 1);
+	  backpatch($1.falselist,nextquad + 3);
+	  emit("goto", "", "", std::to_string(nextquad + 5));
+	  emit("=", "1", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("=", "0", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("-", $1.place, $4.place, $$.place);
+	}else if($1.type != TYPE_BOOL && $4.type == TYPE_BOOL)
+	{
+	  backpatch($4.truelist,nextquad);
+	  backpatch($4.falselist,nextquad + 2);
+	  emit("=", "1", "", $4.place);
+	  emit("goto", "", "", std::to_string(nextquad + 3));
+	  emit("=", "0", "", $4.place);
+	  emit("-", $1.place, $4.place, $$.place);
+	}else if($1.type != TYPE_BOOL && $4.type != TYPE_BOOL)
+	{
+	  
+	}
 	fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
   };
-  | arthlogicexpr  MULT_KW arthlogicexpr
+  | arthlogicexpr  MULT_KW M arthlogicexpr
   {
+	$$.place = newTemp($1.type, false);
+	if($1.type == TYPE_BOOL && $4.type == TYPE_BOOL)
+	{
+	  backpatch($1.truelist,nextquad);
+	  backpatch($1.falselist,nextquad + 2);
+	  backpatch($4.truelist,nextquad + 4);
+	  backpatch($4.falselist,nextquad + 6);
+	  emit("=", "1", "", $1.place);
+	  emit("goto", "", "", std::to_string(nextquad + 3));
+	  emit("=", "0", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("=", "1", "", $4.place);
+	  emit("goto", "", "", std::to_string(nextquad + 7));
+	  emit("=", "0", "", $4.place);
+	  emit("*", $1.place, $4.place, $$.place);
+	}else if($1.type == TYPE_BOOL && $4.type != TYPE_BOOL)
+	{
+	  backpatch($1.truelist,nextquad + 1);
+	  backpatch($1.falselist,nextquad + 3);
+	  emit("goto", "", "", std::to_string(nextquad + 5));
+	  emit("=", "1", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("=", "0", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("*", $1.place, $4.place, $$.place);
+	}else if($1.type != TYPE_BOOL && $4.type == TYPE_BOOL)
+	{
+	  backpatch($4.truelist,nextquad);
+	  backpatch($4.falselist,nextquad + 2);
+	  emit("=", "1", "", $4.place);
+	  emit("goto", "", "", std::to_string(nextquad + 3));
+	  emit("=", "0", "", $4.place);
+	  emit("*", $1.place, $4.place, $$.place);
+	}else if($1.type != TYPE_BOOL && $4.type != TYPE_BOOL)
+	{
+	  
+	}  
 	fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
   };
-  | arthlogicexpr  DIV_KW arthlogicexpr
+  | arthlogicexpr  DIV_KW M arthlogicexpr
   {
+  $$.place = newTemp($1.type, false);
+	if($1.type == TYPE_BOOL && $4.type == TYPE_BOOL)
+	{
+	  backpatch($1.truelist,nextquad);
+	  backpatch($1.falselist,nextquad + 2);
+	  backpatch($4.truelist,nextquad + 4);
+	  backpatch($4.falselist,nextquad + 6);
+	  emit("=", "1", "", $1.place);
+	  emit("goto", "", "", std::to_string(nextquad + 3));
+	  emit("=", "0", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("=", "1", "", $4.place);
+	  emit("goto", "", "", std::to_string(nextquad + 7));
+	  emit("=", "0", "", $4.place);
+	  emit("/",  $1.place , $4.place, $$.place);
+	}else if($1.type == TYPE_BOOL && $4.type != TYPE_BOOL)
+	{
+	  backpatch($1.truelist,nextquad + 1);
+	  backpatch($1.falselist,nextquad + 3);
+	  emit("goto", "", "", std::to_string(nextquad + 5));
+	  emit("=", "1", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("=", "0", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("/", $1.place ,$4.place, $$.place);
+	}else if($1.type != TYPE_BOOL && $4.type == TYPE_BOOL)
+	{
+	  backpatch($4.truelist,nextquad);
+	  backpatch($4.falselist,nextquad + 2);
+	  emit("=", "1", "", $4.place);
+	  emit("goto", "", "", std::to_string(nextquad + 3));
+	  emit("=", "0", "", $4.place);
+	  emit("/", $1.place, $4.place, $$.place);
+	}else if($1.type != TYPE_BOOL && $4.type != TYPE_BOOL)
+	{
+	  
+	}  
 	fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
   };
-  | arthlogicexpr  MOD_KW arthlogicexpr
+  | arthlogicexpr  MOD_KW M arthlogicexpr
   {
+	$$.place = newTemp($1.type, false);
+	if($1.type == TYPE_BOOL && $4.type == TYPE_BOOL)
+	{
+	  backpatch($1.truelist,nextquad);
+	  backpatch($1.falselist,nextquad + 2);
+	  backpatch($4.truelist,nextquad + 4);
+	  backpatch($4.falselist,nextquad + 6);
+	  emit("=", "1", "", $1.place);
+	  emit("goto", "", "", std::to_string(nextquad + 3));
+	  emit("=", "0", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("=", "1", "", $4.place);
+	  emit("goto", "", "", std::to_string(nextquad + 7));
+	  emit("=", "0", "", $4.place);
+	  emit("%", $1.place, $4.place, $$.place);
+	}else if($1.type == TYPE_BOOL && $4.type != TYPE_BOOL)
+	{
+	  backpatch($1.truelist,nextquad + 1);
+	  backpatch($1.falselist,nextquad + 3);
+	  emit("goto", "", "", std::to_string(nextquad + 5));
+	  emit("=", "1", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("=", "0", "", $1.place);
+	  emit("goto", "", "", std::to_string($3.quad));
+	  emit("%", $1.place ,$4.place, $$.place);
+	}else if($1.type != TYPE_BOOL && $4.type == TYPE_BOOL)
+	{
+	  backpatch($4.truelist,nextquad);
+	  backpatch($4.falselist,nextquad + 2);
+	  emit("=", "1", "", $4.place);
+	  emit("goto", "", "", std::to_string(nextquad + 3));
+	  emit("=", "0", "", $4.place);
+	  emit("%", $1.place, $4.place, $$.place);
+	}else if($1.type != TYPE_BOOL && $4.type != TYPE_BOOL)
+	{
+	  
+	}  
 	fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
   };
 
@@ -560,6 +866,7 @@ unaryexpr :  unaryop unaryexpr
   };
   | opera
   {
+	$$.type = $1.type;
     fprintf(fout, "Rule 85 \t\t unaryexpr ->  opera \n");
   };
 
@@ -582,6 +889,7 @@ opera : variable
   };
   | unvar
   {
+	$$.type = $1.type;
     fprintf(fout, "Rule 90 \t\t opera -> unvar \n");
   };
 
@@ -600,6 +908,7 @@ variable : idetifier_type
 
 unvar : '(' expr ')'
   {
+	$$.type = $2.type;
     fprintf(fout, "Rule 94 \t\t unvar -> ( expr ) \n");
   };
   | call
@@ -648,7 +957,7 @@ constant : int_type
   };
   | bool_type
   {
-    fprintf(fout, "Rule 105 \t\t constant : BOOLEAN_CONSTANT \n");
+    fprintf(fout, "Rule 105 \t\t constant : TYPE_BOOL_CONSTANT \n");
   };
 
 int_type : INT_NUM {
@@ -680,7 +989,7 @@ M : /* empty */
   {
   $$.quad = nextquad;
   };
-
+  
 %%
 
 int main() {

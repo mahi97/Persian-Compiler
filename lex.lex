@@ -9,8 +9,6 @@
 #include <math.h>
 #include "parser.tab.h"
 
-using namespace std;
-
 char* lexID;
 int lexNum;
 double lexReal;
@@ -88,15 +86,17 @@ int toNum(char* int_num) {
 }
 
 char* toChar(char* harf) {
+	char* result;
 	if (strcmp(harf, "\'\\n\'") == 0) {
-		return "newline";
+		strcpy(result,"newline");
 	} else if ( strcmp(harf, "\'\\0\'") == 0 || strcmp(harf, "\'\\۰\'") == 0 ) {
-		return "null";
+		strcpy(result,"null");
 	} else {
 		int idxToDel = 1;
 		memmove(&harf[idxToDel], &harf[idxToDel + 1], strlen(harf) - idxToDel);
-		return harf;
+		result = harf;
 	}
+	return result;
 }
 
 
