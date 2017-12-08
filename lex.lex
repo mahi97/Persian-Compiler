@@ -109,10 +109,13 @@ char* toChar(char* harf) {
 	char* result;
 	if (strcmp(harf, "\'\\n\'") == 0) {
 		strcpy(result,"\n");
+		return result;
 	} else if ( strcmp(harf, "\'\\0\'") == 0 || strcmp(harf, "\'\\۰\'") == 0 ) {
 		strcpy(result,"\0");
+		return result;
 	} else {
 		int idxToDel = 1;
+		if (harf[0] == '\'')
 		memmove(&harf[idxToDel], &harf[idxToDel + 1], strlen(harf) - idxToDel);
 		result = harf;
 	}
