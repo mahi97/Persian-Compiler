@@ -20,6 +20,16 @@ double toReal(char* real_num) {
 	int count = 0,count2 = 0;
 	int res[50];
 	bool intPart = true;
+
+	int n1 = real_num[i];
+	int n2 = real_num[i+1];
+
+	while((n1 == 37 && n2 == -80) || real_num[i] == '0') {
+		i++;
+		n1 = real_num[i];
+		n2 = real_num[i+1];
+	}
+
 	while(real_num[i] != '\0') {
 		if (real_num[0] == '.') {
 			intPart = false;
@@ -65,6 +75,16 @@ int toNum(char* int_num) {
 	int i = 0;
 	int count = 0;
 	int res[50];
+
+	int n1 = int_num[i];
+	int n2 = int_num[i+1];
+
+	while((n1 == 37 && n2 == -80) || int_num[i] == '0') {
+		i++;
+		n1 = int_num[i];
+		n2 = int_num[i+1];
+	}
+
 	while(int_num[i] != '\0') {
 		int num = int_num[i];
 		if (num >= 0 && num <= 255) {
@@ -88,15 +108,58 @@ int toNum(char* int_num) {
 char* toChar(char* harf) {
 	char* result;
 	if (strcmp(harf, "\'\\n\'") == 0) {
-		strcpy(result,"newline");
+		strcpy(result,"\n");
 	} else if ( strcmp(harf, "\'\\0\'") == 0 || strcmp(harf, "\'\\۰\'") == 0 ) {
-		strcpy(result,"null");
+		strcpy(result,"\0");
 	} else {
 		int idxToDel = 1;
 		memmove(&harf[idxToDel], &harf[idxToDel + 1], strlen(harf) - idxToDel);
 		result = harf;
 	}
-	return result;
+	int type = -1;
+	int cnt = 0;
+	char* result2 = new char[100];
+	for (int i = 0; i < strlen(result); i++) {
+		int r = result[i];
+		if (r > 0 && r < 256) {
+			result2[cnt++] = r;
+			continue;
+		}
+		else if (r == -37) {
+			type = 0;
+			continue;
+		} else if (r == -38) {
+			type = 1;
+			continue;
+		} else if (r == -39) {
+			type = 2;
+			continue;
+		} else if (r == -40) {
+			type = 3;
+			continue;
+		} 
+		else {
+			switch(type) {
+				case 0:
+				if (r >= -80) r += 80; // handle numbers
+				else r += 193;
+				break;
+				case 1:
+				r += 193;
+				break;
+				case 2:
+				if (r == -66) r += 161; // handle pe :D
+				else r += 193;
+				break;
+				case 3:
+				r += 191;
+				break;
+			}
+		}	
+		result2[cnt++] = r;
+	}
+
+	return result2;
 }
 
 
@@ -106,8 +169,8 @@ char* toChar(char* harf) {
 ZERO (0|۰)
 DIGIT (۰|۱|۲|۳|۴|۵|۶|۷|۸|۹|[0-9])
 NONZERO_DIGIT (۱|۲|۳|۴|۵|۶|۷|۸|۹|[1-9])
-
-harf (_|ض|ص|ث|ق|ف|غ|ع|ه|خ|ح|ج|چ|گ|ک|م|ن|ت|ا|ل|ب|ی|س|ش|ظ|ط|ز|ر|ذ|د|پ|و|ژ|آ|ـ)
+UNDER (ـ)
+harf (ض|ص|ث|ق|ف|غ|ع|ه|خ|ح|ج|چ|گ|ک|م|ن|ت|ا|ل|ب|ی|س|ش|ظ|ط|ز|ر|ذ|د|پ|و|ژ|آ|{UNDER})
 BOOLEAN_CONSTANT_TRUE (درست)
 BOOLEAN_CONSTANT_FALSE (غلط)
 
@@ -161,7 +224,6 @@ ASSIGN_MINUS   (-=)
 ASSIGN_MULT    (\*=)
 ASSIGN_DIV (\/=)
 
-IDENTIFIER {harf}({harf}|{DIGIT})*
 
 JAYEKHALI (\ |\t)*
 NOGHTE_VIRGUL (;|؛)
@@ -175,6 +237,8 @@ DDOT_PUNC (\:)
 BRUCKET_BAZ (\[)
 BRUCKET_BASTE (\])
 COMMENT (\/\/.*)|(\/\*(.|\n)*\*\/)
+
+IDENTIFIER {harf}({harf}|{DIGIT})*
 
 HARFE_SABET \'{harf}\'
 HARFE_SABET_KHAS (\'\\{harf}\'|\'\\0\'|\'\\n\'|\'\\۰\')
@@ -217,7 +281,10 @@ CHAR_CONSTANT {HARFE_SABET}|{HARFE_SABET_KHAS}
 {INT_NUM} {lexNum = toNum(yytext); return INT_NUM;}
 {REAL_NUM} {lexReal = toReal(yytext); return REAL_NUM;}
 
-{IDENTIFIER}    {lexID = yytext;return IDENTIFIER;}
+{IDENTIFIER}    {lexID = new char[strlen(yytext)];
+				 strcpy(lexID,toChar(yytext));
+				 return IDENTIFIER;
+				}
 
 {GT_KW} {return GT_KW;}
 {LT_KW} {return LT_KW;}
