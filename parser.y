@@ -11,6 +11,7 @@
   #include <cstring>
   #include <list>
   #include "llist.h"
+  #include <csignal>
   using namespace std;
 
 
@@ -27,23 +28,10 @@
   extern bool lexBool;
   extern int yylex(void);
 
-  char symbolTable[100][50];
+  // char symbolTable[1000][50];
   int wrong=0;
-  int cursor = 0;
   int nextquad = 0;
   int num = 0; // temporary variable numbers
-
-  int install_id(char* next) {
-    for (int i = 0; i < cursor; i++) {
-      if (strcmp(next, symbolTable[i]) == 0) {
-        return i;
-      }
-    }
-
-    strcpy(symbolTable[cursor], next);
-    return cursor++;
-  }
-
 
   void yyerror(const char *s);
 
@@ -57,32 +45,81 @@
     TYPE_BOOL = 3
   };
 
+void split(const string &s, char delim, vector<string> &elems) {
+    stringstream ss;
+    ss.str(s);
+    string item;
+    while (getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+}
+
+vector<string> split(const string &s, char delim) {
+    vector<string> elems;
+    split(s, delim, elems);
+    return elems;
+}
+
   /*** Symbol Table ***/
   struct symbolTableEntry {
       string id;
-      string type;
+      int type;
       bool is_array = false;
       vector <symbolTableEntry> *forward = NULL;
       vector <symbolTableEntry> *backward = NULL;
       int uid = 0;
   };
 
-  void symbolTableInsert(string* _id, int _type, bool _isArray) {
+  int cursor = 0;
+  vector<symbolTableEntry*> symbolTable;
 
+  int symbolTableInsert(string _id, int _type, bool _isArray) {
+    symbolTableEntry* ste = new symbolTableEntry;
+    if (_id[0] == '#') _id = _id.substr(1);
+    ste->id = _id;
+    ste->type = _type;
+    ste->is_array = _isArray;
+    ste->uid = cursor;
+    symbolTable.push_back(ste);
+    return cursor++;
   }
 
-  symbolTableEntry symbolTableLookup(string* _id) {
-    symbolTableEntry a;
-    return a;
+  symbolTableEntry* symbolTableLookup(const string& _id) {
+    for (auto& ste : symbolTable) {
+      if (ste->id == _id) {
+        return ste;
+      }
+    }
+    return nullptr;
+  }
+
+  string printSymbolTable() {
+    std::string s;
+    for(auto& ste : symbolTable) {
+      std::string arr = (ste->is_array) ? "*" : "";
+      switch(ste->type) {
+        case TYPE_INT:
+          s += "\tint " + arr + ste->id + ";\n";
+        break;
+        case TYPE_BOOL:
+          s += "\tchar " + arr + "b" + ste->id + ";\n";
+        break;
+        case TYPE_REAL:
+          s += "\tdouble " + arr + ste->id + ";\n"; 
+        break;
+        case TYPE_CHAR:
+          s += "\tchar " + arr + ste->id + ";\n";
+        break;
+      }
+    }
+    return s;
   }
 
   char* newTemp(int _type, bool _isArray) {
     string* name = new string{"temp"};
-    name += num++;
-    symbolTableInsert(name, _type, _isArray);
-    char* c = (char*) malloc(sizeof(char) * 100);
-    strcpy(c,symbolTableLookup(name).id.c_str());
-    return c;
+    *name += std::to_string(num++);
+    symbolTableInsert(*name, _type, _isArray);
+    return const_cast<char*>(name->c_str());
   }
 
   llist* makelist(int _data) {
@@ -183,7 +220,63 @@
         printf("Wrong index%d\n", j);
     }
   }
+
+  string printQuadruple()
+  {
+    std::string s;
+    for(int i = 0;i < quadruples.size();i++)
+    {
+      s += "L" + std::to_string(i) + ": ";   
+      if((quadruples[i] -> operation).compare("+") == 0)
+      {
+        s += quadruples[i] -> result + " = " + quadruples[i] -> arg1 + " + " + quadruples[i] -> arg2 + ";\n";
+      }else if((quadruples[i] -> operation).compare("-") == 0)
+      {
+        s += quadruples[i] -> result + " = " + quadruples[i] -> arg1 + " - " + quadruples[i] -> arg2 + ";\n";
+      }else if((quadruples[i] -> operation).compare("*") == 0)
+      {
+        s += quadruples[i] -> result + " = " + quadruples[i] -> arg1 + " * " + quadruples[i] -> arg2 + ";\n"; 
+      }else if((quadruples[i] -> operation).compare("/") == 0)
+      {
+        s += quadruples[i] -> result + " = " + quadruples[i] -> arg1 + " / " + quadruples[i] -> arg2 + ";\n";
+      }else if((quadruples[i] -> operation).compare("%") == 0)
+      {
+        s += quadruples[i] -> result + " = " + quadruples[i] -> arg1 + " % " + quadruples[i] -> arg2 + ";\n";
+      }else if((quadruples[i] -> operation).compare("ifgoto") == 0)
+      {
+        s +=  std::string("if") + " ( " + quadruples[i] -> arg1 +" ) " + "goto " + "L" + quadruples[i] -> result + ";\n";
+      }else if((quadruples[i] -> operation).compare("goto") == 0)
+      {
+        s += std::string("goto ") + "L" + quadruples[i] -> result + ";\n";
+      }else {
+        s+= ";\n";
+      }
+    }
+    return s;
+  }
+
   // END_OF_QUADRUPLES
+
+  void generateInterCode() {
+    FILE* interCode;
+    interCode = fopen("mahi.c", "w");
+    if (fout == NULL) {
+      printf("Error opening file!\n");
+      return;
+    }
+    fprintf(interCode, "#include <stdio.h>\n");
+    fprintf(interCode, "#include <stdio.h>\n");
+    fprintf(interCode, "#include <stdio.h>\n");
+    fprintf(interCode, "#include <stdio.h>\n\n");
+    fprintf(interCode, "void main() {\n");
+    fprintf(interCode, "/* SYMBOL TABLE */\n");
+    fprintf(interCode, "%s\n", printSymbolTable().c_str());
+    fprintf(interCode, "/*  Quadruples  */\n");
+    fprintf(interCode, "%s\n", printQuadruple().c_str());
+
+    fclose(interCode);
+
+  }
 
   %}
 
@@ -192,6 +285,7 @@
 
       int type;
       char* place;
+      char* code;
       struct llist* truelist;
       struct llist* falselist;
       int quad;
@@ -233,6 +327,8 @@
 
   program : PROGRAM_KW idetifier_type declist
   	{
+      printf("Mahi\n");
+      generateInterCode();
   		fprintf(fout, "Rule 1 \t\t program -> PROGRAM_KW idetifier_type declist \n") ;
   	};
 
@@ -305,34 +401,51 @@
 
   vardec : type varsdecs ';'
     {
+      vector<string> tokens = split($2.code, ',');
+      for(auto& token : tokens) {
+
+        symbolTableInsert(token, $1.type, (token[0] = '#'));
+      }
       fprintf(fout, "%d: Rule 9 \t\t vardec -> type varsdecs ;\n", yylineno);
     };
 
   varsdecs : primiryvardec
     {
       fprintf(fout, "%d: Rule 10.1 \t\t varsdecs -> primiryvardec \n", yylineno);
+      $$.code = new char[100];
+      strcpy($$.code,$1.place);
     };
     | varsdecs ',' primiryvardec
     {
-      fprintf(fout, "%d: Rule 10.2 \t\t varsdecs -> varsdecs , primiryvardec \n", yylineno);
+        fprintf(fout, "%d: Rule 10.2 \t\t varsdecs -> varsdecs , primiryvardec \n", yylineno);
+        char *tt = new char[100];
+        printf("%s\n", $1.code);
+        strcpy(tt, $1.code);
+        $$.code = strcat(strcat(tt, ","), $3.place);
     };
 
   primiryvardec : varIDdec
     {
       fprintf(fout, "%d: Rule 11.1 \t\t primiryvardec -> varIDdec \n", yylineno);
+      $$.place = $1.place;
     };
     | varIDdec '=' simpleexp
     {
       fprintf(fout, "%d: Rule 11.2 \t\t primiryvardec -> varIDdec = simpleexp \n", yylineno);
+      // $$.place = $1.place;
+      // emit("=", $3.place, "", $1.place);
     };
 
   varIDdec : idetifier_type
     {
+      $$.place = $1.place;
       fprintf(fout, "%d: Rule 12.1 \t\t varIDdec -> idetifier_type \n", yylineno);
     };
     | idetifier_type '[' int_type ']'
     {
       fprintf(fout, "%d: Rule 12.2 \t\t varIDdec -> idetifier_type [ int_type ] \n", yylineno);
+      strcpy($$.place,"#");
+      strcat($$.place,$1.place);
     };
 
   funcdec : type idetifier_type '(' arg ')' sentence
@@ -508,81 +621,81 @@
     };
     | variable ASSIGN_MINUS expr
     {
-  	if($3.type == TYPE_BOOL)
-  	{
-  	  backpatch($3.truelist,nextquad);
-      backpatch($3.falselist,nextquad + 1);
-  	  emit("-", $1.place, "1", $1.place);
-  	}else
-  	{
+      $$.place = newTemp($1.type, false);
       $$.type = $1.type;
+  	  backpatch($3.truelist,nextquad + 1);
+      backpatch($3.falselist,nextquad);
+      emit("=", $1.place, "0", $$.place);
+      emit("=", $1.place, "1", $3.place);
       emit("-", $1.place, $3.place, $1.place);
-  	}
       fprintf(fout, "Rule 58 \t\t expr -> variable -= expr \n");
     };
     | variable ASSIGN_MULT expr
     {
-  	if($3.type == TYPE_BOOL)
-  	{
+      $$.place = newTemp($1.type, false);
+      $$.type = $1.type;
   	  backpatch($3.truelist,nextquad + 1);
       backpatch($3.falselist,nextquad);
-  	  emit("=", "0", "", $1.place);
-  	}else
-  	{
-      $$.type = $1.type;
+      emit("=", "0", "", $3.place);
+      emit("=", "1", "", $3.place);
       emit("*", $1.place, $3.place, $1.place);
-  	}
       fprintf(fout, "Rule 59 \t\t expr -> variable *= expr \n");
     };
     | variable ASSIGN_DIV expr
     {
-  	if($3.type == TYPE_BOOL)
-  	{
-  	//error because % 0 and % 1 can not be defined
-  	}else
-  	{
+      $$.place = newTemp($1.type, false);
       $$.type = $1.type;
+  	  backpatch($3.truelist,nextquad+1);
+      backpatch($3.falselist, nextquad);
+      emit("=","0","", $3.place);
+      emit("=","1","", $3.place);
+      emit("/", $1.place, $3.place, $$.place);
       emit("/", $1.place, $3.place, $1.place);
-  	}
       fprintf(fout, "Rule 60 \t\t expr -> variable /= expr \n");
     };
     | variable INC_KW
     {
+      $$.place = newTemp($1.type, false);
       fprintf(fout, "Rule 61 \t\t expr -> variable ++ \n");
       $$.type = $1.type;
+      emit("+", $1.place, "1", $$.place);
       emit("+", $1.place, "1", $1.place);
     };
-    | variable DEC_KW expr
+    | variable DEC_KW
     {
       fprintf(fout, "Rule 62 \t\t expr -> variable -- \n");
+      $$.place = newTemp($1.type, false);
       $$.type = $1.type;
+      emit("-", $1.place, "1", $$.place);
       emit("-", $1.place, "1", $1.place);
     };
     | simpleexp
     {
-  	  $$.type = $1.type;
+      $$.type = $1.type;
       $$.place = $1.place;
       $$.truelist = $1.truelist;
       $$.falselist = $1.falselist;
-  	fprintf(fout, "Rule 63 \t\t expr -> simpleexp \n");
+      fprintf(fout, "Rule 63 \t\t expr -> simpleexp \n");
     };
 
 
   simpleexp : simpleexp OR_KW M simpleexp
     {
-      backpatch($1.falselist,$3.quad);
-  	$$.truelist = merge_lists($1.truelist,$4.truelist);
-  	$$.falselist = $4.falselist;
-  	$$.type = TYPE_BOOL;
       fprintf(fout, "Rule 64 \t\t simpleexp -> simpleexp OR simpleexp \n");
+      $$.place = newTemp(TYPE_BOOL, false);
+      backpatch($1.falselist,$3.quad);
+      $$.truelist = merge_lists($1.truelist,$4.truelist);
+      $$.falselist = $4.falselist;
+      $$.type = TYPE_BOOL;
     };
     | simpleexp AND_KW M simpleexp
     {
-  	backpatch($1.truelist,$3.quad);
-  	$$.truelist = $4.truelist;
-  	$$.falselist = merge_lists($1.falselist,$4.falselist);
-      $$.type = TYPE_BOOL;
   	fprintf(fout, "Rule 65 \t\t simpleexp -> simpleexp AND simpleexp \n");
+      $$.place = newTemp(TYPE_BOOL, false);
+      backpatch($1.truelist,$3.quad);
+      $$.truelist = $4.truelist;
+      $$.falselist = merge_lists($1.falselist,$4.falselist);
+      $$.type = TYPE_BOOL;
     };
     | simpleexp XOR_KW simpleexp
     {
@@ -594,18 +707,19 @@
     };
     | NOT_KW simpleexp
     {
-  	$$.truelist = $2.falselist;
-  	$$.falselist = $2.truelist;
-  	$$.type = TYPE_BOOL;
       fprintf(fout, "Rule 68 \t\t simpleexp -> NOT simpleexp \n");
+      $$.place = newTemp(TYPE_BOOL, false);
+      $$.type = TYPE_BOOL;
+      $$.truelist = $2.falselist;
+      $$.falselist = $2.truelist;
     };
     | relativeexp
     {
-  	  $$.type = $1.type;
+      fprintf(fout, "Rule 69 \t\t simpleexp -> relativeexp \n");
+      $$.type = $1.type;
       $$.place = $1.place;
       $$.truelist = $1.truelist;
       $$.falselist = $1.falselist;
-      fprintf(fout, "Rule 69 \t\t simpleexp -> relativeexp \n");
     };
 
   relativeexp : arthlogicexpr
@@ -618,13 +732,14 @@
     };
     | arthlogicexpr relativeop arthlogicexpr
     {
-    $$.type = TYPE_BOOL;
-  	$$.truelist = makelist(nextquad);
-    $$.falselist = makelist(nextquad + 1);
-    emit($2.place, $1.place, $3.place, $$.place);
-  	emit("ifgoto", $$.place,"", "");
-  	emit("goto", "", "", "");
-  	fprintf(fout, "Rule 71 \t\t relativeexp -> arthlogicexpr relativeop arthlogicexpr \n");
+      $$.place = newTemp(TYPE_BOOL, false);
+      $$.type = TYPE_BOOL;
+    	$$.truelist = makelist(nextquad + 1);
+      $$.falselist = makelist(nextquad + 2);
+      emit($2.place, $1.place, $3.place, $$.place);
+    	emit("ifgoto", $$.place,"", std::to_string(nextquad + 2));
+    	emit("goto", "", "", std::to_string(nextquad + 1));
+    	fprintf(fout, "Rule 71 \t\t relativeexp -> arthlogicexpr relativeop arthlogicexpr \n");
     };
 
   relativeop : LT_KW
@@ -671,18 +786,18 @@
   	  backpatch($4.truelist,nextquad + 4);
   	  backpatch($4.falselist,nextquad + 6);
   	  emit("=","1", "",$1.place);
-  	  emit("goto","","", std::to_string(nextquad + 3));
+  	  emit("goto","","", std::to_string(nextquad + 1));
   	  emit("=", "0", "",$1.place);
   	  emit("goto", "", "", std::to_string($3.quad));
   	  emit("=", "1", "", $4.place);
-  	  emit("goto", "", "", std::to_string(nextquad + 7));
+  	  emit("goto", "", "", std::to_string(nextquad + 1));
   	  emit("=", "0", "", $4.place);
   	  emit("+", $1.place, $4.place,$$.place);
   	} else if($1.type == TYPE_BOOL && $4.type != TYPE_BOOL)
   	{
   	  backpatch($1.truelist,nextquad + 1);
   	  backpatch($1.falselist,nextquad + 3);
-  	  emit("goto", "", "", std::to_string(nextquad + 5));
+  	  emit("goto", "", "", std::to_string(nextquad + 4));
   	  emit("=", "1", "", $1.place);
   	  emit("goto", "", "", std::to_string($3.quad));
   	  emit("=", "0", "", $1.place);
@@ -693,12 +808,16 @@
   	  backpatch($4.truelist,nextquad);
   	  backpatch($4.falselist,nextquad + 2);
   	  emit("=", "1", "", $4.place);
-  	  emit("goto", "", "", std::to_string(nextquad + 3));
+  	  emit("goto", "", "", std::to_string(nextquad + 1));
   	  emit("=", "0", "", $4.place);
-  	  emit("=", $1.place, $4.place, $$.place);
+  	  emit("+", $1.place, $4.place, $$.place);
   	}else if($1.type != TYPE_BOOL && $4.type == TYPE_BOOL)
   	{
-  	  
+      $$.truelist = makelist(nextquad + 1);
+      $$.falselist = makelist(nextquad + 2);
+      emit("+", $1.place, $4.place, $$.place);
+      emit("ifgoto", $$.place, "", std::to_string(nextquad + 2));
+      emit("goto", "", "", std::to_string(nextquad + 1));
   	}
       fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
     };
@@ -784,7 +903,7 @@
   	}  
   	fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
     };
-    | arthlogicexpr  DIV_KW M arthlogicexpr
+    | arthlogicexpr DIV_KW M arthlogicexpr
     {
     $$.place = newTemp($1.type, false);
   	if($1.type == TYPE_BOOL && $4.type == TYPE_BOOL)
@@ -794,7 +913,7 @@
   	  backpatch($4.truelist,nextquad + 4);
   	  backpatch($4.falselist,nextquad + 6);
   	  emit("=", "1", "", $1.place);
-  	  emit("goto", "", "", std::to_string(nextquad + 3));
+  	  emit("goto", "", "", std::to_string(nextquad + 1));
   	  emit("=", "0", "", $1.place);
   	  emit("goto", "", "", std::to_string($3.quad));
   	  emit("=", "1", "", $4.place);
@@ -827,19 +946,20 @@
     };
     | arthlogicexpr  MOD_KW M arthlogicexpr
     {
-  	$$.place = newTemp($1.type, false);
-  	if($1.type == TYPE_BOOL && $4.type == TYPE_BOOL)
+  	$$.place = newTemp(TYPE_INT, false);
+    $$.type = TYPE_INT;
+    if($1.type == TYPE_BOOL && $4.type == TYPE_BOOL)
   	{
   	  backpatch($1.truelist,nextquad);
   	  backpatch($1.falselist,nextquad + 2);
   	  backpatch($4.truelist,nextquad + 4);
   	  backpatch($4.falselist,nextquad + 6);
   	  emit("=", "1", "", $1.place);
-  	  emit("goto", "", "", std::to_string(nextquad + 3));
+  	  emit("goto", "", "", std::to_string(nextquad + 1));
   	  emit("=", "0", "", $1.place);
   	  emit("goto", "", "", std::to_string($3.quad));
   	  emit("=", "1", "", $4.place);
-  	  emit("goto", "", "", std::to_string(nextquad + 7));
+  	  emit("goto", "", "", std::to_string(nextquad + 1));
   	  emit("=", "0", "", $4.place);
   	  emit("%", $1.place, $4.place, $$.place);
   	}else if($1.type == TYPE_BOOL && $4.type != TYPE_BOOL)
@@ -862,13 +982,30 @@
   	  emit("%", $1.place, $4.place, $$.place);
   	}else if($1.type != TYPE_BOOL && $4.type != TYPE_BOOL)
   	{
-  	  
+  	  emit("%", $1.place, $4.place, $$.place);
   	}  
   	fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr arthop arthlogicexpr \n");
     };
 
   unaryexpr :  unaryop unaryexpr
     {
+      if ($1.type == TYPE_UNKNOWN) {
+        $$.place = newTemp($2.type, false);
+        $$.type = $2.type;
+        $$.truelist = $2.truelist;
+        $$.falselist = $2.falselist;
+        emit($1.place, $2.place, "", $$.place);
+      }
+      else {
+        $$.place = newTemp($1.type, false);
+        $$.type = $1.type;
+        $$.truelist = makelist(nextquad + 1);
+        $$.falselist = makelist(nextquad + 2);
+        emit($1.place, $2.place, "", $$.place);
+        emit("check", $$.place, "", std::to_string(nextquad + 2));
+        emit("goto", "", "", std::to_string(nextquad + 1));
+
+      }
       fprintf(fout, "Rule 84 \t\t unaryexpr ->  unaryop unaryexpr \n");
     };
     | opera
@@ -882,19 +1019,26 @@
 
   unaryop : MINUS_KW
     {
+      $$.type = TYPE_UNKNOWN;
+      strcpy($$.place,"usub");
       fprintf(fout, "Rule 86 \t\t unaryop -> - \n");
     };
     | MULT_KW
     {
+      $$.type = TYPE_INT;
+      strcpy($$.place,"asterisk");
       fprintf(fout, "Rule 87 \t\t unaryop -> * \n");
     };
     | QUEST_MARK
     {
+      $$.type = TYPE_INT;
+      strcpy($$.place,"quest");
       fprintf(fout, "Rule 88 \t\t unaryop -> ? \n");
     };
 
   opera : variable
     {
+      $$.place = $1.place;
       fprintf(fout, "Rule 89 \t\t opera -> variable \n");
     };
     | unvar
@@ -908,6 +1052,7 @@
 
   variable : idetifier_type
     {
+      $$.place = $1.place;
       fprintf(fout, "Rule 91 \t\t variable -> idetifier_type \n");
     };
     | variable '[' expr ']'
@@ -921,7 +1066,10 @@
 
   unvar : '(' expr ')'
     {
-  	$$.type = $2.type;
+  	  $$.type = $2.type;
+      $$.place = $2.place;
+      $$.truelist = $2.truelist;
+      $$.falselist = $2.falselist;
       fprintf(fout, "Rule 94 \t\t unvar -> ( expr ) \n");
     };
     | call
@@ -957,6 +1105,9 @@
     };
     | expr
     {
+      $$.place = $1.place;
+      $$.type  = $1.type;
+
       fprintf(fout, "Rule 101 \t\t argsVector -> expr \n");
     };
 
@@ -982,7 +1133,7 @@
       $$.place = $1.place;
       $$.truelist = $1.truelist;
       $$.falselist = $1.falselist;
-      fprintf(fout, "Rule 104 \t\t constant : CHAR_CONSTANT \n");
+      fprintf(fout, "Rule 104 \t\t constant : char_type \n");
     };
     | bool_type
     {
@@ -990,10 +1141,12 @@
       $$.place = $1.place;
       $$.truelist = $1.truelist;
       $$.falselist = $1.falselist;
-      fprintf(fout, "Rule 105 \t\t constant : TYPE_BOOL_CONSTANT \n");
+      fprintf(fout, "Rule 105 \t\t constant : bool_type \n");
     };
 
   int_type : INT_NUM {
+          fprintf(fout, "Rule 106 \t\t int_type : INT_NUM \n");
+
     $$.type = TYPE_INT;
     $$.place = newTemp(TYPE_INT,false);
     $$.truelist = makelist(nextquad + 1);
@@ -1004,6 +1157,8 @@
   };
 
   real_type : REAL_NUM {
+          fprintf(fout, "Rule 107 \t\t real_type : REAL_NUM \n");
+
     $$.type = TYPE_REAL;
     $$.place = newTemp(TYPE_REAL,false);
     $$.truelist = makelist(nextquad + 1);
@@ -1014,6 +1169,8 @@
   };
 
   char_type : CHAR_CONSTANT {
+          fprintf(fout, "Rule 108 \t\t char_type : CHAR_CONSTANT \n");
+
     $$.type = TYPE_CHAR;
     $$.place = newTemp(TYPE_CHAR,false);
     $$.truelist = makelist(nextquad + 1);
@@ -1024,6 +1181,8 @@
   };
 
   bool_type : BOOL_CONSTANT_FALSE {
+          fprintf(fout, "Rule 109 \t\t bool_type : BOOL_CONSTANT_FALSE \n");
+
       $$.type = TYPE_BOOL;
       $$.place = newTemp(TYPE_BOOL,false);
       $$.truelist = makelist(nextquad + 1);
@@ -1034,7 +1193,9 @@
 
     };
     | BOOL_CONSTANT_TRUE {
+
       $$.type = TYPE_BOOL;
+      fprintf(fout, "Rule 110 \t\t bool_type : BOOL_CONSTANT_TRUE \n");
       $$.place = newTemp(TYPE_BOOL,false);
       $$.truelist = makelist(nextquad + 1);
       $$.falselist = makelist(nextquad + 2);
@@ -1045,18 +1206,28 @@
 
 
   idetifier_type : IDENTIFIER {
-    $$.place = lexID;
-
+      fprintf(fout, "Rule 111 \t\t idetifier_type : IDENTIFIER \n");
+      $$.place = lexID;
   };
 
   M : /* empty */
     {
+            fprintf(fout, "Rule 112 \t\t M : empty \n");
     $$.quad = nextquad;
     };
 
   %%
 
+  void handle(int signal) {
+    fclose(fout);
+    exit(1);
+  }
+
   int main() {
+
+    signal(11, handle);
+    signal(SIGINT, handle);
+    signal(SIGABRT, handle);
   	// open a file handle to a particular file:
   	yyin = fopen("input.txt", "r");
 
