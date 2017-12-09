@@ -216,7 +216,7 @@ MOD_KW   (%)
 
 AMALGAR_YEGANI_NEG (-)
 AMALGAR_YEGANI_STR (\*)
-QUEST_MARK (\?)
+QUEST_MARK (\?|؟)
 
 INC_KW (\+\+)
 DEC_KW (--)
