@@ -31,14 +31,15 @@ double toReal(char* real_num) {
 	}
 
 	while(real_num[i] != '\0') {
-		if (real_num[0] == '.') {
+		if (real_num[i] == '.') {
 			intPart = false;
+			i++;
 			continue;
 		}
 		if (intPart) {
 			int num = real_num[i];
 			if (num >= 0 && num <= 255) {
-				res[count] = atoi(&real_num[i]);
+				res[count] = real_num[i] - '0';
 				count++;
 			} else {
 				if (num != -37) {
@@ -49,7 +50,7 @@ double toReal(char* real_num) {
 		} else {
 			int num = real_num[i];
 			if (num >= 0 && num <= 255) {
-				res[count+count2] = atoi(&real_num[i]);
+				res[count+count2] = real_num[i] - '0';
 				count2++;
 			} else {
 				if (num != -37) {
@@ -66,8 +67,9 @@ double toReal(char* real_num) {
 		r += res[j] * pow(10,count-j-1);
 	}
 	for (int j = 0; j < count2; j++) {
-		r += res[count + j] * pow(0.1,count2-j);
+		r += res[count + j] * pow(0.1,j+1);
 	}
+	printf("%s ---> %f\n", real_num, r);
 	return r;
 }
 
@@ -88,7 +90,8 @@ int toNum(char* int_num) {
 	while(int_num[i] != '\0') {
 		int num = int_num[i];
 		if (num >= 0 && num <= 255) {
-			res[count] = atoi(&int_num[i]);
+			res[count] = int_num[i] - '0';
+			printf("%d\n", res[count]);
 			count++;
 		} else {
 			if (num != -37) {
@@ -102,6 +105,7 @@ int toNum(char* int_num) {
 	for (int j = 0; j < count; j++) {
 		r += res[j]*pow(10,count-j-1);
 	}
+	printf("%s ---> %d\n", int_num, r);
 	return r;
 }
 
