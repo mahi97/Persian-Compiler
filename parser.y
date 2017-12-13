@@ -280,8 +280,8 @@ void generateInterCode() {
     }
     fprintf(interCode, "#include <stdio.h>\n");
     fprintf(interCode, "#include <time.h>\n");
-    fprintf(interCode, "#include <stdio.h>\n");
-    fprintf(interCode, "#include <stdio.h>\n\n");
+    fprintf(interCode, "#include <stdlib.h>\n");
+    fprintf(interCode, "#include <stack.h>\n\n");
     fprintf(interCode, "int ud(int rL, int rH) {\n\tdouble mR = rand()/(1.0 + RAND_MAX);\n\tint r = rH - rL + 1;\n\tint mRS = (mR * r) + rL;\n\treturn mrS;\n}\n\n");
     fprintf(interCode, "void main() {\n");
     fprintf(interCode, "/* SYMBOL TABLE */\n");
@@ -927,7 +927,17 @@ opera : variable
 variable : idetifier_type
 {
     fprintf(fout, "Rule 91 \t\t variable -> idetifier_type \n");
-    // $$.place = $1.place;
+    symbolTableEntry* temp = symbolTableLookup($1.place);
+    if (temp == nullptr) {
+      printf("%d : Error! %s is not declared.\n", yylineno, $1.place);
+    } else {
+        $$.place = $1.place;
+        $$.type  = temp->type;
+        $$.truelist = makelist(nextquad + 1);
+        $$.falselist = makelist(nextquad + 2);
+        emit("ifgoto", $$.place, "", std::to_string(nextquad + 2));
+        emit("goto", "", "", std::to_string(nextquad + 1));
+    }
 };
 | variable '[' expr ']'
 {
@@ -940,11 +950,11 @@ variable : idetifier_type
 
 unvar : '(' expr ')'
 {
+    fprintf(fout, "Rule 94 \t\t unvar -> ( expr ) \n");
     $$.type = $2.type;
     $$.place = $2.place;
     $$.truelist = $2.truelist;
     $$.falselist = $2.falselist;
-    fprintf(fout, "Rule 94 \t\t unvar -> ( expr ) \n");
 };
 | call
 {
@@ -952,11 +962,11 @@ unvar : '(' expr ')'
 };
 | constant
 {
+    fprintf(fout, "Rule 96 \t\t unvar : constant \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
     $$.falselist = $1.falselist;
-    fprintf(fout, "Rule 96 \t\t unvar : constant \n");
 };
 
 call : idetifier_type '(' argVector ')'
@@ -979,43 +989,43 @@ argsVector : argsVector ',' expr
 };
 | expr
 {
+    fprintf(fout, "Rule 101 \t\t argsVector -> expr \n");
     $$.place = $1.place;
     $$.type  = $1.type;
 
-    fprintf(fout, "Rule 101 \t\t argsVector -> expr \n");
 };
 
 constant : int_type
 {
+    fprintf(fout, "Rule 102 \t\t constant : int_type \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
     $$.falselist = $1.falselist;
-    fprintf(fout, "Rule 102 \t\t constant : int_type \n");
 };
 | real_type
 {
+    fprintf(fout, "Rule 103 \t\t constant : real_type \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
     $$.falselist = $1.falselist;
-    fprintf(fout, "Rule 103 \t\t constant : real_type \n");
 };
 | char_type
 {
+    fprintf(fout, "Rule 104 \t\t constant : char_type \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
     $$.falselist = $1.falselist;
-    fprintf(fout, "Rule 104 \t\t constant : char_type \n");
 };
 | bool_type
 {
+    fprintf(fout, "Rule 105 \t\t constant : bool_type \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
     $$.falselist = $1.falselist;
-    fprintf(fout, "Rule 105 \t\t constant : bool_type \n");
 };
 
 int_type : INT_NUM {
@@ -1043,8 +1053,8 @@ real_type : REAL_NUM {
 };
 
 char_type : CHAR_CONSTANT {
-    fprintf(fout, "Rule 108 \t\t char_type : CHAR_CONSTANT \n");
 
+    fprintf(fout, "Rule 108 \t\t char_type : CHAR_CONSTANT \n");
     $$.type = TYPE_CHAR;
     $$.place = newTemp(TYPE_CHAR,false);
     $$.truelist = makelist(nextquad + 1);
@@ -1055,8 +1065,8 @@ char_type : CHAR_CONSTANT {
 };
 
 bool_type : BOOL_CONSTANT_FALSE {
-    fprintf(fout, "Rule 109 \t\t bool_type : BOOL_CONSTANT_FALSE \n");
 
+    fprintf(fout, "Rule 109 \t\t bool_type : BOOL_CONSTANT_FALSE \n");
     $$.type = TYPE_BOOL;
     $$.place = newTemp(TYPE_BOOL,false);
     $$.truelist = makelist(nextquad + 1);
@@ -1068,8 +1078,8 @@ bool_type : BOOL_CONSTANT_FALSE {
 };
 | BOOL_CONSTANT_TRUE {
 
-    $$.type = TYPE_BOOL;
     fprintf(fout, "Rule 110 \t\t bool_type : BOOL_CONSTANT_TRUE \n");
+    $$.type = TYPE_BOOL;
     $$.place = newTemp(TYPE_BOOL,false);
     $$.truelist = makelist(nextquad + 1);
     $$.falselist = makelist(nextquad + 2);
@@ -1082,6 +1092,7 @@ bool_type : BOOL_CONSTANT_FALSE {
 idetifier_type : IDENTIFIER {
     fprintf(fout, "Rule 111 \t\t idetifier_type : IDENTIFIER \n");
     $$.place = lexID;
+    $$.type  = TYPE_UNKNOWN;
 };
 
 M : /* empty */
