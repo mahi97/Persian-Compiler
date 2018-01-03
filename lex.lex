@@ -69,7 +69,6 @@ double toReal(char* real_num) {
 	for (int j = 0; j < count2; j++) {
 		r += res[count + j] * pow(0.1,j+1);
 	}
-	printf("%s ---> %f\n", real_num, r);
 	return r;
 }
 
@@ -91,7 +90,6 @@ int toNum(char* int_num) {
 		int num = int_num[i];
 		if (num >= 0 && num <= 255) {
 			res[count] = int_num[i] - '0';
-			printf("%d\n", res[count]);
 			count++;
 		} else {
 			if (num != -37) {
@@ -105,18 +103,15 @@ int toNum(char* int_num) {
 	for (int j = 0; j < count; j++) {
 		r += res[j]*pow(10,count-j-1);
 	}
-	printf("%s ---> %d\n", int_num, r);
 	return r;
 }
 
 char* toChar(char* harf) {
 	char* result;
 	if (strcmp(harf, "\'\\n\'") == 0) {
-		strcpy(result,"\n");
-		return result;
+		return harf;
 	} else if ( strcmp(harf, "\'\\0\'") == 0 || strcmp(harf, "\'\\۰\'") == 0 ) {
-		strcpy(result,"\0");
-		return result;
+		return "\'\\0\'";
 	} else {
 		int idxToDel = 1;
 		if (harf[0] == '\'')
@@ -165,7 +160,7 @@ char* toChar(char* harf) {
 		}	
 		result2[cnt++] = r;
 	}
-
+	result2[cnt] = '\0';
 	return result2;
 }
 

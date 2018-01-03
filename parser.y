@@ -103,7 +103,7 @@ string printSymbolTable() {
             s += "\tint " + arr + ste->id + ";\n";
             break;
         case TYPE_BOOL:
-            s += "\tchar " + arr + "b" + ste->id + ";\n";
+            s += "\tchar " + arr + ste->id + ";\n";
             break;
         case TYPE_REAL:
             s += "\tdouble " + arr + ste->id + ";\n";
@@ -149,7 +149,6 @@ llist* makelist(int _data) {
   * |             E = E1 > E2            |     >     |     E1    |   E2  |    E    |
   * |            E = E1 >= E2            |     >=    |     E1    |   E2  |    E    |
   * |            E = E1 == E2            |     ==    |     E1    |   E2  |    E    |
-  * |            E = E1 <> E2            |     <>    |     E1    |   E2  |    E    |
   * |             E = E1 + E2            |     +     |     E1    |   E2  |    E    |
   * |             E = E1 - E2            |     -     |     E1    |   E2  |    E    |
   * |             E = E1 * E2            |     *     |     E1    |   E2  |    E    |
@@ -169,9 +168,8 @@ llist* makelist(int _data) {
   * |  printf("E[PLACE] = E[INDEX].val") |  arprint  |   PLACE   | INDEX |   real  |
   * |  printf("E[PLACE] = E[INDEX].val") |  acprint  |   PLACE   | INDEX |   char  |
   * |  printf("E[PLACE] = E[INDEX].val") |  abprint  |   PLACE   | INDEX | boolean |
-  * | NAME = malloc(sizeOf(TYPE) * SIZE) |   malloc  |    TYPE   |  SIZE |   NAME  |
-  * |          *(E + INDEX) = E1         |    []=    |     E1    | INDEX |    E    |
-  * |          E = *(E1 + INDEX)         |    =[]    |     E1    | INDEX |    E    |
+  * |             E[INDEX] = E1          |    []=    |     E1    | INDEX |    E    |
+  * |             E = E1[INDEX]          |    =[]    |     E1    | INDEX |    E    |
   * |____________________________________|___________|___________|_______|_________|
   */
 
@@ -201,7 +199,7 @@ void emit(string _op, string _arg1, string _arg2, string _result) {
 void backpatch(struct llist* _head, int _label) {
     struct node* current;
     for (current = _head->head; current != nullptr; current = current->next) {
-        quadruples[current->data]->result = _label;
+        quadruples[current->data]->result = std::to_string(_label);
     }
 }
 
@@ -262,6 +260,10 @@ string printQuadruple()
             s += quadruples[i] -> result + " = " + "sizeof(" + quadruples[i] -> arg1 + ")/sizeof(" + quadruples[i] -> arg1 + "[0]) ;\n";
         } else if(quadruples[i] -> operation == "quest") {
             s += quadruples[i] -> result + " = " + "ud(0, " + quadruples[i] -> arg1 + ") ;\n";
+        } else if(quadruples[i] -> operation == "=[]") {
+            s += quadruples[i] -> result + "["+ quadruples[i] -> arg2 + "]" + " = " + quadruples[i] -> arg1 + ";\n";
+        } else if(quadruples[i] -> operation == "[]=") {
+            s += quadruples[i] -> result + " = " + quadruples[i] -> arg1 + "["+ quadruples[i] -> arg2 + "]" + ";\n";
         } else {
             s+= quadruples[i]->operation + ";\n";
         }
@@ -273,22 +275,23 @@ string printQuadruple()
 
 void generateInterCode() {
     FILE* interCode;
-    interCode = fopen("mahi.c", "w");
+    interCode = fopen("generatedCode.c", "w");
     if (fout == NULL) {
         printf("Error opening file!\n");
         return;
     }
     fprintf(interCode, "#include <stdio.h>\n");
     fprintf(interCode, "#include <time.h>\n");
-    fprintf(interCode, "#include <stdlib.h>\n");
-    fprintf(interCode, "#include <stack.h>\n\n");
-    fprintf(interCode, "int ud(int rL, int rH) {\n\tdouble mR = rand()/(1.0 + RAND_MAX);\n\tint r = rH - rL + 1;\n\tint mRS = (mR * r) + rL;\n\treturn mrS;\n}\n\n");
-    fprintf(interCode, "void main() {\n");
+    fprintf(interCode, "#include <stdlib.h>\n\n");
+    fprintf(interCode, "int ud(int rL, int rH) {\n\tdouble mR = rand()/(1.0 + RAND_MAX);\n\tint r = rH - rL + 1;\n\tint mRS = (mR * r) + rL;\n\treturn mRS;\n}\n\n");
+    fprintf(interCode, "int main() {\n");
     fprintf(interCode, "/* SYMBOL TABLE */\n");
     fprintf(interCode, "%s\n", printSymbolTable().c_str());
     fprintf(interCode, "/*  Quadruples  */\n");
     fprintf(interCode, "%s\n", printQuadruple().c_str());
-
+    std::string nextLabel = std::string("L") + std::to_string(quadruples.size()) + ": ;";
+    fprintf(interCode, "%s\n", nextLabel.c_str());
+    fprintf(interCode, "return 0;\n}\n");
     fclose(interCode);
 
 }
@@ -303,6 +306,7 @@ void generateInterCode() {
         char* code;
         struct llist* truelist;
         struct llist* falselist;
+        struct llist* nextlist;
         int quad;
     } E;
 }
@@ -458,7 +462,7 @@ primiryvardec : varIDdec
 {
     fprintf(fout, "%d: Rule 11.2 \t\t primiryvardec -> varIDdec = simpleexp \n", yylineno);
     $$.place = $1.place;
-    // emit("=", $3.place, "", $1.place);
+    emit("=", $3.place, "", $1.place);
 };
 
 varIDdec : idetifier_type
@@ -551,76 +555,77 @@ sentence : compSent
 
 compSent : '{' localdec sentences '}'
 {
-    fprintf(fout, "Rule 41 \t\t compSent -> { localdec sentences } \n");
+    fprintf(fout, "Rule 20 \t\t compSent -> { localdec sentences } \n");
 };
 
 sentences : sentences sentence
 {
-    fprintf(fout, "Rule 42 \t\t sentences -> sentences sentence \n");
+    fprintf(fout, "Rule 21.1 \t\t sentences -> sentences sentence \n");
 };
 | /* empty */
 {
-fprintf(fout, "Rule 43 \t\t sentences -> e \n");
+fprintf(fout, "Rule 21.2 \t\t sentences -> e \n");
 };
 
 exprSent : expr ';'
 {
-    fprintf(fout, "Rule 44 \t\t exprSent -> expr ; \n");
+    fprintf(fout, "Rule 22.1 \t\t exprSent -> expr ; \n");
 };
 | ';'
 {
-fprintf(fout, "Rule 45 \t\t exprSent -> ; \n");
+fprintf(fout, "Rule 22.2 \t\t exprSent -> ; \n");
 };
 
 selectSent : IF_KW simpleexp THEN_KW sentence
 {
-    fprintf(fout, "Rule 46 \t\t selectSent -> IF_KW simpleexp THEN_KW sentence \n");
+    fprintf(fout, "Rule 23.1 \t\t selectSent -> IF_KW simpleexp THEN_KW sentence \n");
+
 };
 | IF_KW simpleexp THEN_KW sentence ELSE_KW sentence
 {
-    fprintf(fout, "Rule 47 \t\t selectSent -> IF_KW simpleexp THEN_KW sentence ELSE_KW sentence \n");
+    fprintf(fout, "Rule 23.2 \t\t selectSent -> IF_KW simpleexp THEN_KW sentence ELSE_KW sentence \n");
 };
 | SWITCH_KW '(' simpleexp ')' caseelement defaultelement END_KW
 {
-    fprintf(fout, "Rule 48 \t\t selectSent -> SWITCH_KW '(' simpleexp ')' caseelement defaultelement END_KW \n");
+    fprintf(fout, "Rule 23.3 \t\t selectSent -> SWITCH_KW '(' simpleexp ')' caseelement defaultelement END_KW \n");
 };
 
 caseelement : CASE_KW int_type ':' sentence ';'
 {
-    fprintf(fout, "Rule 49 \t\t caseelement -> CASE_KW int_type : sentence ; \n");
+    fprintf(fout, "Rule 24.1 \t\t caseelement -> CASE_KW int_type : sentence ; \n");
 };
 | caseelement CASE_KW int_type ':' sentence ';'
 {
-    fprintf(fout, "Rule 50 \t\t caseelement -> caseelement CASE_KW int_type : sentence ; \n");
+    fprintf(fout, "Rule 24.2 \t\t caseelement -> caseelement CASE_KW int_type : sentence ; \n");
 };
 
 defaultelement : DEFAULT_KW ':' sentence ';'
 {
-    fprintf(fout, "Rule 51 \t\t defaultelement -> DEFAULT_KW : sentence ; \n");
+    fprintf(fout, "Rule 25.1 \t\t defaultelement -> DEFAULT_KW : sentence ; \n");
 };
 | /* empty */
 {
-fprintf(fout, "Rule 52 \t\t defaultelement -> e \n");
+fprintf(fout, "Rule 25.2 \t\t defaultelement -> e \n");
 };
 
 repeatSent : WHEN_KW '(' simpleexp ')' sentence
 {
-    fprintf(fout, "Rule 53 \t\t repeatSent -> WHEN_KW '(' simpleexp ')' sentence \n");
+    fprintf(fout, "Rule 26 \t\t repeatSent -> WHEN_KW '(' simpleexp ')' sentence \n");
 };
 
 returnSent : RETURN_KW expr ';'
 {
-    fprintf(fout, "Rule 54 \t\t returnSent -> RETURN_KW ; \n");
+    fprintf(fout, "Rule 27 \t\t returnSent -> RETURN_KW ; \n");
 };
 
 breakSent : BREAK_KW ';'
 {
-    fprintf(fout, "Rule 55 \t\t breakSent -> BREAK_KW ; \n");
+    fprintf(fout, "Rule 28 \t\t breakSent -> BREAK_KW ; \n");
 };
 
 expr : variable '=' expr
 {
-    fprintf(fout, "Rule 56 \t\t expr -> variable = expr \n");
+    fprintf(fout, "Rule 29.1 \t\t expr -> variable = expr \n");
     if($3.type == TYPE_BOOL) {
         backpatch($3.truelist,nextquad);
         backpatch($3.falselist,nextquad + 2);
@@ -634,62 +639,47 @@ expr : variable '=' expr
 };
 | variable ASSIGN_PLUS expr
 {
-    if($3.type == TYPE_BOOL) {
-        backpatch($3.truelist,nextquad);
-        backpatch($3.falselist,nextquad + 1);
-        emit("+", $1.place, "1", $1.place);
-
-    } else {
-        $$.type = $1.type;
-        emit("+", $3.place, $1.place, $1.place);
-    }
-    fprintf(fout, "Rule 57 \t\t expr -> variable += expr \n");
+    $$.place = newTemp($1.type, false);
+    $$.type = $1.type;
+    emit("+", $1.place, $3.place, $$.place);
+    emit("+", $1.place, $3.place, $1.place);
+    fprintf(fout, "Rule 29.2 \t\t expr -> variable += expr \n");
 };
 | variable ASSIGN_MINUS expr
 {
     $$.place = newTemp($1.type, false);
     $$.type = $1.type;
-    backpatch($3.truelist,nextquad + 1);
-    backpatch($3.falselist,nextquad);
-    emit("=", $1.place, "0", $$.place);
-    emit("=", $1.place, "1", $3.place);
+    emit("-", $1.place, $3.place, $$.place);
     emit("-", $1.place, $3.place, $1.place);
-    fprintf(fout, "Rule 58 \t\t expr -> variable -= expr \n");
+    fprintf(fout, "Rule 29.3 \t\t expr -> variable -= expr \n");
 };
 | variable ASSIGN_MULT expr
 {
     $$.place = newTemp($1.type, false);
     $$.type = $1.type;
-    backpatch($3.truelist,nextquad + 1);
-    backpatch($3.falselist,nextquad);
-    emit("=", "0", "", $3.place);
-    emit("=", "1", "", $3.place);
+    emit("*", $1.place, $3.place, $$.place);
     emit("*", $1.place, $3.place, $1.place);
-    fprintf(fout, "Rule 59 \t\t expr -> variable *= expr \n");
+    fprintf(fout, "Rule 29.4 \t\t expr -> variable *= expr \n");
 };
 | variable ASSIGN_DIV expr
 {
     $$.place = newTemp($1.type, false);
     $$.type = $1.type;
-    backpatch($3.truelist,nextquad+1);
-    backpatch($3.falselist, nextquad);
-    emit("=","0","", $3.place);
-    emit("=","1","", $3.place);
     emit("/", $1.place, $3.place, $$.place);
     emit("/", $1.place, $3.place, $1.place);
-    fprintf(fout, "Rule 60 \t\t expr -> variable /= expr \n");
+    fprintf(fout, "Rule 29.5 \t\t expr -> variable /= expr \n");
 };
 | variable INC_KW
 {
     $$.place = newTemp($1.type, false);
-    fprintf(fout, "Rule 61 \t\t expr -> variable ++ \n");
+    fprintf(fout, "Rule 29.6 \t\t expr -> variable ++ \n");
     $$.type = $1.type;
     emit("+", $1.place, "1", $$.place);
     emit("+", $1.place, "1", $1.place);
 };
 | variable DEC_KW
 {
-    fprintf(fout, "Rule 62 \t\t expr -> variable -- \n");
+    fprintf(fout, "Rule 29.7 \t\t expr -> variable -- \n");
     $$.place = newTemp($1.type, false);
     $$.type = $1.type;
     emit("-", $1.place, "1", $$.place);
@@ -697,7 +687,7 @@ expr : variable '=' expr
 };
 | simpleexp
 {
-    fprintf(fout, "Rule 63 \t\t expr -> simpleexp \n");
+    fprintf(fout, "Rule 29.8 \t\t expr -> simpleexp \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
@@ -707,7 +697,7 @@ expr : variable '=' expr
 
 simpleexp : simpleexp OR_KW M simpleexp
 {
-    fprintf(fout, "Rule 64 \t\t simpleexp -> simpleexp OR simpleexp \n");
+    fprintf(fout, "Rule 30.1 \t\t simpleexp -> simpleexp OR simpleexp \n");
     $$.place = newTemp(TYPE_BOOL, false);
     backpatch($1.falselist,$3.quad);
     $$.truelist = merge_lists($1.truelist,$4.truelist);
@@ -716,7 +706,7 @@ simpleexp : simpleexp OR_KW M simpleexp
 };
 | simpleexp AND_KW M simpleexp
 {
-    fprintf(fout, "Rule 65 \t\t simpleexp -> simpleexp AND simpleexp \n");
+    fprintf(fout, "Rule 30.2 \t\t simpleexp -> simpleexp AND simpleexp \n");
     $$.place = newTemp(TYPE_BOOL, false);
     backpatch($1.truelist,$3.quad);
     $$.truelist = $4.truelist;
@@ -725,15 +715,15 @@ simpleexp : simpleexp OR_KW M simpleexp
 };
 | simpleexp XOR_KW simpleexp
 {
-    fprintf(fout, "Rule 66 \t\t simpleexp -> simpleexp XOR simpleexp \n");
+    fprintf(fout, "Rule 30.3 \t\t simpleexp -> simpleexp XOR simpleexp \n");
 };
 | simpleexp ALSO_KW simpleexp
 {
-    fprintf(fout, "Rule 67 \t\t simpleexp -> simpleexp ALSO simpleexp \n");
+    fprintf(fout, "Rule 30.4 \t\t simpleexp -> simpleexp ALSO simpleexp \n");
 };
 | NOT_KW simpleexp
 {
-    fprintf(fout, "Rule 68 \t\t simpleexp -> NOT simpleexp \n");
+    fprintf(fout, "Rule 30.5 \t\t simpleexp -> NOT simpleexp \n");
     $$.place = newTemp(TYPE_BOOL, false);
     $$.type = TYPE_BOOL;
     $$.truelist = $2.falselist;
@@ -741,7 +731,7 @@ simpleexp : simpleexp OR_KW M simpleexp
 };
 | relativeexp
 {
-    fprintf(fout, "Rule 69 \t\t simpleexp -> relativeexp \n");
+    fprintf(fout, "Rule 30.6 \t\t simpleexp -> relativeexp \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
@@ -750,7 +740,7 @@ simpleexp : simpleexp OR_KW M simpleexp
 
 relativeexp : arthlogicexpr
 {
-    fprintf(fout, "Rule 70 \t\t relativeexp -> arthlogicexpr \n");
+    fprintf(fout, "Rule 31.1 \t\t relativeexp -> arthlogicexpr \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
@@ -758,50 +748,51 @@ relativeexp : arthlogicexpr
 };
 | arthlogicexpr relativeop arthlogicexpr
 {
-    fprintf(fout, "Rule 71 \t\t relativeexp -> arthlogicexpr relativeop arthlogicexpr \n");
+    fprintf(fout, "Rule 31.2 \t\t relativeexp -> arthlogicexpr relativeop arthlogicexpr \n");
     $$.place = newTemp(TYPE_BOOL, false);
     $$.type = TYPE_BOOL;
     $$.truelist = makelist(nextquad + 1);
     $$.falselist = makelist(nextquad + 2);
     emit($2.place, $1.place, $3.place, $$.place);
+    printf("%d,,, %s\n", nextquad + 2, std::to_string(nextquad + 2).c_str());
     emit("ifgoto", $$.place,"", std::to_string(nextquad + 2));
     emit("goto", "", "", std::to_string(nextquad + 1));
 };
 
 relativeop : LT_KW
 {
-    fprintf(fout, "Rule 72 \t\t relativeop -> < \n");
+    fprintf(fout, "Rule 32.1 \t\t relativeop -> < \n");
     $$.place = new char[3];
     strcpy($$.place,"<");
 };
 | LE_KW
 {
-    fprintf(fout, "Rule 73 \t\t relativeop -> <= \n");
+    fprintf(fout, "Rule 32.2 \t\t relativeop -> <= \n");
     $$.place = new char[3];
     strcpy($$.place,"<=");
 };
 | EQ_KW
 {
-    fprintf(fout, "Rule 74 \t\t relativeop -> == \n");
+    fprintf(fout, "Rule 32.3 \t\t relativeop -> == \n");
     $$.place = new char[3];
     strcpy($$.place,"==");
 };
 | GE_KW
 {
-    fprintf(fout, "Rule 75 \t\t relativeop -> >= \n");
+    fprintf(fout, "Rule 32.4 \t\t relativeop -> >= \n");
     $$.place = new char[3];
     strcpy($$.place,">=");
 };
 | GT_KW
 {
-    fprintf(fout, "Rule 76 \t\t relativeop -> > \n");
+    fprintf(fout, "Rule 32.5 \t\t relativeop -> > \n");
     $$.place = new char[3];
     strcpy($$.place,">");
 };
 
 arthlogicexpr : unaryexpr
 {
-    fprintf(fout, "Rule 77 \t\t arthlogicexpr -> unaryexpr \n");
+    fprintf(fout, "Rule 33.1 \t\t arthlogicexpr -> unaryexpr \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
@@ -809,7 +800,7 @@ arthlogicexpr : unaryexpr
 };
 | arthlogicexpr PLUS_KW arthlogicexpr
 {
-    fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr PLUS_KW arthlogicexpr \n");
+    fprintf(fout, "Rule 33.2 \t\t arthlogicexpr -> arthlogicexpr PLUS_KW arthlogicexpr \n");
     $$.place = newTemp($1.type, false);
     $$.truelist = makelist(nextquad + 1);
     $$.falselist = makelist(nextquad + 2);
@@ -819,7 +810,7 @@ arthlogicexpr : unaryexpr
 };
 | arthlogicexpr MINUS_KW arthlogicexpr
 {
-    fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr MINUS_KW arthlogicexpr \n");
+    fprintf(fout, "Rule 33.3 \t\t arthlogicexpr -> arthlogicexpr MINUS_KW arthlogicexpr \n");
     $$.place = newTemp($1.type, false);
     $$.truelist = makelist(nextquad + 1);
     $$.falselist = makelist(nextquad + 2);
@@ -829,7 +820,7 @@ arthlogicexpr : unaryexpr
 };
 | arthlogicexpr MULT_KW arthlogicexpr
 {
-    fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr MULT_KW arthlogicexpr \n");
+    fprintf(fout, "Rule 33.4 \t\t arthlogicexpr -> arthlogicexpr MULT_KW arthlogicexpr \n");
     $$.place = newTemp($1.type, false);
     $$.truelist = makelist(nextquad + 1);
     $$.falselist = makelist(nextquad + 2);
@@ -839,7 +830,7 @@ arthlogicexpr : unaryexpr
 };
 | arthlogicexpr DIV_KW arthlogicexpr
 {
-    fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr DIV_KW arthlogicexpr \n");
+    fprintf(fout, "Rule 33.5 \t\t arthlogicexpr -> arthlogicexpr DIV_KW arthlogicexpr \n");
     $$.place = newTemp($1.type, false);
     $$.truelist = makelist(nextquad + 1);
     $$.falselist = makelist(nextquad + 2);
@@ -849,7 +840,7 @@ arthlogicexpr : unaryexpr
 };
 | arthlogicexpr MOD_KW arthlogicexpr
 {
-    fprintf(fout, "Rule 78 \t\t arthlogicexpr -> arthlogicexpr MOD_KW arthlogicexpr \n");
+    fprintf(fout, "Rule 33.6 \t\t arthlogicexpr -> arthlogicexpr MOD_KW arthlogicexpr \n");
     $$.place = newTemp($1.type, false);
     $$.truelist = makelist(nextquad + 1);
     $$.falselist = makelist(nextquad + 2);
@@ -877,7 +868,7 @@ unaryexpr :  unaryop unaryexpr
         emit("goto", "", "", std::to_string(nextquad + 1));
 
     }
-    fprintf(fout, "Rule 84 \t\t unaryexpr ->  unaryop unaryexpr \n");
+    fprintf(fout, "Rule 34.1 \t\t unaryexpr ->  unaryop unaryexpr \n");
 };
 | opera
 {
@@ -885,26 +876,26 @@ unaryexpr :  unaryop unaryexpr
     $$.place = $1.place;
     $$.truelist = $1.truelist;
     $$.falselist = $1.falselist;
-    fprintf(fout, "Rule 85 \t\t unaryexpr ->  opera \n");
+    fprintf(fout, "Rule 34.2 \t\t unaryexpr ->  opera \n");
 };
 
 unaryop : MINUS_KW
 {
-    fprintf(fout, "Rule 86 \t\t unaryop -> - \n");
+    fprintf(fout, "Rule 35.1 \t\t unaryop -> - \n");
     $$.place = new char[10];
     $$.type = TYPE_UNKNOWN;
     strcpy($$.place,"usub");
 };
 | MULT_KW
 {
-    fprintf(fout, "Rule 87 \t\t unaryop -> * \n");
+    fprintf(fout, "Rule 35.2 \t\t unaryop -> * \n");
     $$.place = new char[10];
     $$.type = TYPE_INT;
     strcpy($$.place,"asterisk");
 };
 | QUEST_MARK
 {
-    fprintf(fout, "Rule 88 \t\t unaryop -> ? \n");
+    fprintf(fout, "Rule 35.3 \t\t unaryop -> ? \n");
     $$.place = new char[10];
     $$.type = TYPE_INT;
     strcpy($$.place,"quest");
@@ -912,12 +903,12 @@ unaryop : MINUS_KW
 
 opera : variable
 {
-    fprintf(fout, "Rule 89 \t\t opera -> variable \n");
+    fprintf(fout, "Rule 36.1 \t\t opera -> variable \n");
     $$.place = $1.place;
 };
 | unvar
 {
-    fprintf(fout, "Rule 90 \t\t opera -> unvar \n");
+    fprintf(fout, "Rule 36.2 \t\t opera -> unvar \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
@@ -926,7 +917,7 @@ opera : variable
 
 variable : idetifier_type
 {
-    fprintf(fout, "Rule 91 \t\t variable -> idetifier_type \n");
+    fprintf(fout, "Rule 37.1 \t\t variable -> idetifier_type \n");
     symbolTableEntry* temp = symbolTableLookup($1.place);
     if (temp == nullptr) {
       printf("%d : Error! %s is not declared.\n", yylineno, $1.place);
@@ -941,16 +932,28 @@ variable : idetifier_type
 };
 | variable '[' expr ']'
 {
-    fprintf(fout, "Rule 92 \t\t variable -> variable [ expr ] \n");
+    fprintf(fout, "Rule 37.2 \t\t variable -> variable [ expr ] \n");
+    symbolTableEntry* tmp = symbolTableLookup($1.place);
+    if (tmp == nullptr || tmp->is_array) {
+        printf("%d : Error! %s is not declared.\n", yylineno, $1.place);
+    } else {
+        $$.place = newTemp($1.type, false);
+        $$.type  = tmp->type;
+        emit("=[]", $1.place, $3.place, $$.place);
+        $$.truelist = makelist(nextquad + 1);
+        $$.falselist = makelist(nextquad + 2);
+        emit("ifgoto", $$.place, "", std::to_string(nextquad + 2));
+        emit("goto", "", "", std::to_string(nextquad + 1));
+    }
 };
 | variable '.' idetifier_type
 {
-    fprintf(fout, "Rule 93 \t\t variable : variable . idetifier_type \n");
+    fprintf(fout, "Rule 37.3 \t\t variable : variable . idetifier_type \n");
 };
 
 unvar : '(' expr ')'
 {
-    fprintf(fout, "Rule 94 \t\t unvar -> ( expr ) \n");
+    fprintf(fout, "Rule 38.1 \t\t unvar -> ( expr ) \n");
     $$.type = $2.type;
     $$.place = $2.place;
     $$.truelist = $2.truelist;
@@ -958,11 +961,11 @@ unvar : '(' expr ')'
 };
 | call
 {
-    fprintf(fout, "Rule 95 \t\t unvar -> call \n");
+    fprintf(fout, "Rule 38.2 \t\t unvar -> call \n");
 };
 | constant
 {
-    fprintf(fout, "Rule 96 \t\t unvar : constant \n");
+    fprintf(fout, "Rule 38.3 \t\t unvar : constant \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
@@ -971,25 +974,25 @@ unvar : '(' expr ')'
 
 call : idetifier_type '(' argVector ')'
 {
-    fprintf(fout, "Rule 97 \t\t call -> idetifier_type '(' argVector ')' \n");
+    fprintf(fout, "Rule 39 \t\t call -> idetifier_type '(' argVector ')' \n");
 };
 
 argVector : argsVector
 {
-    fprintf(fout, "Rule 98 \t\t argVector -> argsVector \n");
+    fprintf(fout, "Rule 40.1 \t\t argVector -> argsVector \n");
 };
 | /* empty */
 {
-fprintf(fout, "Rule 99 \t\t argVector -> e \n");
+fprintf(fout, "Rule 40.2 \t\t argVector -> e \n");
 };
 
 argsVector : argsVector ',' expr
 {
-    fprintf(fout, "Rule 100 \t\t argsVector -> argsVector , expr \n");
+    fprintf(fout, "Rule 41.1 \t\t argsVector -> argsVector , expr \n");
 };
 | expr
 {
-    fprintf(fout, "Rule 101 \t\t argsVector -> expr \n");
+    fprintf(fout, "Rule 41.2 \t\t argsVector -> expr \n");
     $$.place = $1.place;
     $$.type  = $1.type;
 
@@ -997,7 +1000,7 @@ argsVector : argsVector ',' expr
 
 constant : int_type
 {
-    fprintf(fout, "Rule 102 \t\t constant : int_type \n");
+    fprintf(fout, "Rule 42.1 \t\t constant : int_type \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
@@ -1005,7 +1008,7 @@ constant : int_type
 };
 | real_type
 {
-    fprintf(fout, "Rule 103 \t\t constant : real_type \n");
+    fprintf(fout, "Rule 42.2 \t\t constant : real_type \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
@@ -1013,7 +1016,7 @@ constant : int_type
 };
 | char_type
 {
-    fprintf(fout, "Rule 104 \t\t constant : char_type \n");
+    fprintf(fout, "Rule 42.3 \t\t constant : char_type \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
@@ -1021,7 +1024,7 @@ constant : int_type
 };
 | bool_type
 {
-    fprintf(fout, "Rule 105 \t\t constant : bool_type \n");
+    fprintf(fout, "Rule 42.4 \t\t constant : bool_type \n");
     $$.type = $1.type;
     $$.place = $1.place;
     $$.truelist = $1.truelist;
@@ -1029,7 +1032,7 @@ constant : int_type
 };
 
 int_type : INT_NUM {
-    fprintf(fout, "Rule 106 \t\t int_type : INT_NUM \n");
+    fprintf(fout, "Rule 42.5 \t\t int_type : INT_NUM \n");
 
     $$.type = TYPE_INT;
     $$.place = newTemp(TYPE_INT,false);
@@ -1041,7 +1044,7 @@ int_type : INT_NUM {
 };
 
 real_type : REAL_NUM {
-    fprintf(fout, "Rule 107 \t\t real_type : REAL_NUM \n");
+    fprintf(fout, "Rule 43 \t\t real_type : REAL_NUM \n");
 
     $$.type = TYPE_REAL;
     $$.place = newTemp(TYPE_REAL,false);
@@ -1054,7 +1057,7 @@ real_type : REAL_NUM {
 
 char_type : CHAR_CONSTANT {
 
-    fprintf(fout, "Rule 108 \t\t char_type : CHAR_CONSTANT \n");
+    fprintf(fout, "Rule 44 \t\t char_type : CHAR_CONSTANT \n");
     $$.type = TYPE_CHAR;
     $$.place = newTemp(TYPE_CHAR,false);
     $$.truelist = makelist(nextquad + 1);
@@ -1066,7 +1069,7 @@ char_type : CHAR_CONSTANT {
 
 bool_type : BOOL_CONSTANT_FALSE {
 
-    fprintf(fout, "Rule 109 \t\t bool_type : BOOL_CONSTANT_FALSE \n");
+    fprintf(fout, "Rule 45 \t\t bool_type : BOOL_CONSTANT_FALSE \n");
     $$.type = TYPE_BOOL;
     $$.place = newTemp(TYPE_BOOL,false);
     $$.truelist = makelist(nextquad + 1);
@@ -1078,7 +1081,7 @@ bool_type : BOOL_CONSTANT_FALSE {
 };
 | BOOL_CONSTANT_TRUE {
 
-    fprintf(fout, "Rule 110 \t\t bool_type : BOOL_CONSTANT_TRUE \n");
+    fprintf(fout, "Rule 46 \t\t bool_type : BOOL_CONSTANT_TRUE \n");
     $$.type = TYPE_BOOL;
     $$.place = newTemp(TYPE_BOOL,false);
     $$.truelist = makelist(nextquad + 1);
@@ -1090,15 +1093,15 @@ bool_type : BOOL_CONSTANT_FALSE {
 
 
 idetifier_type : IDENTIFIER {
-    fprintf(fout, "Rule 111 \t\t idetifier_type : IDENTIFIER \n");
+    fprintf(fout, "Rule 47 \t\t idetifier_type : IDENTIFIER \n");
     $$.place = lexID;
     $$.type  = TYPE_UNKNOWN;
 };
 
 M : /* empty */
 {
-fprintf(fout, "Rule 112 \t\t M : empty \n");
-$$.quad = nextquad;
+fprintf(fout, "Rule 48 \t\t M : empty \n");
+    $$.quad = nextquad;
 };
 
 %%
