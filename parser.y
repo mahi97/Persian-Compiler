@@ -77,6 +77,7 @@ vector<symbolTableEntry*> symbolTable;
 int symbolTableInsert(string _id, int _type, bool _isArray) {
     symbolTableEntry* ste = new symbolTableEntry;
     if (_id[0] == '#') _id = _id.substr(1);
+    printf("%s %d\n", _id.c_str(), _id.size());
     ste->id = _id;
     ste->type = _type;
     ste->is_array = _isArray;
@@ -260,9 +261,9 @@ string printQuadruple()
             s += quadruples[i] -> result + " = " + "sizeof(" + quadruples[i] -> arg1 + ")/sizeof(" + quadruples[i] -> arg1 + "[0]) ;\n";
         } else if(quadruples[i] -> operation == "quest") {
             s += quadruples[i] -> result + " = " + "ud(0, " + quadruples[i] -> arg1 + ") ;\n";
-        } else if(quadruples[i] -> operation == "=[]") {
-            s += quadruples[i] -> result + "["+ quadruples[i] -> arg2 + "]" + " = " + quadruples[i] -> arg1 + ";\n";
         } else if(quadruples[i] -> operation == "[]=") {
+            s += quadruples[i] -> result + "["+ quadruples[i] -> arg2 + "]" + " = " + quadruples[i] -> arg1 + ";\n";
+        } else if(quadruples[i] -> operation == "=[]") {
             s += quadruples[i] -> result + " = " + quadruples[i] -> arg1 + "["+ quadruples[i] -> arg2 + "]" + ";\n";
         } else {
             s+= quadruples[i]->operation + ";\n";
@@ -328,6 +329,7 @@ void generateInterCode() {
 %type <E> char_type
 %type <E> program declist dec structdec localdec limitedvardec limitedvartype type vardec varsdecs primiryvardec varIDdec funcdec arg args argstype argsID argID sentence compSent sentences exprSent selectSent caseelement defaultelement repeatSent returnSent argsVector constant argVector call breakSent unvar expr simpleexp variable relativeexp relativeop arthlogicexpr unaryexpr unaryop opera
 %type <E> M
+
 %right THEN_KW
 %right ELSE_KW
 %left XOR_KW OR_KW
@@ -340,9 +342,6 @@ void generateInterCode() {
 
 %%
 
-// this is the actual grammar that bison will parse, but for right now it's just
-// something silly to echo to the screen what bison gets from flex.  We'll
-// make a real one shortly:
 
 program : PROGRAM_KW idetifier_type declist
 {
@@ -476,6 +475,7 @@ varIDdec : idetifier_type
     $$.place = new char[100];
     strcpy($$.place,"#");
     strcat($$.place,$1.place);
+    printf("%s\n", $$.place);
 };
 
 funcdec : type idetifier_type '(' arg ')' sentence
@@ -633,8 +633,19 @@ expr : variable '=' expr
         emit("goto", "", "", std::to_string(nextquad + 3));
         emit("=", "0", "",$1.place);
     } else {
+        if (symbolTableLookup($1.place) != nullptr && symbolTableLookup($1.place)->is_array) {
+            $$.type = $1.type;
+            emit("[]=", $1.place, $3.place, $$.place);
+
+        } else if (symbolTableLookup($3.place) != nullptr && symbolTableLookup($3.place)->is_array) {
+            $$.type = $1.type;
+            emit("=[]", $1.place, $3.place, $$.place);
+
+        } else {
         $$.type = $1.type;
         emit("=", $3.place, "", $1.place);
+            
+        }
     }
 };
 | variable ASSIGN_PLUS expr
@@ -934,12 +945,11 @@ variable : idetifier_type
 {
     fprintf(fout, "Rule 37.2 \t\t variable -> variable [ expr ] \n");
     symbolTableEntry* tmp = symbolTableLookup($1.place);
-    if (tmp == nullptr || tmp->is_array) {
+    if (tmp == nullptr || !tmp->is_array) {
         printf("%d : Error! %s is not declared.\n", yylineno, $1.place);
     } else {
         $$.place = newTemp($1.type, false);
         $$.type  = tmp->type;
-        emit("=[]", $1.place, $3.place, $$.place);
         $$.truelist = makelist(nextquad + 1);
         $$.falselist = makelist(nextquad + 2);
         emit("ifgoto", $$.place, "", std::to_string(nextquad + 2));
@@ -1117,7 +1127,7 @@ int main() {
     signal(SIGINT, handle);
     signal(SIGABRT, handle);
     // open a file handle to a particular file:
-    yyin = fopen("input.txt", "r");
+    yyin = fopen("expression.txt", "r");
 
     fout = fopen("output.txt", "w");
     fprintf(fout, "\n \t \t \t PARSER \n");
